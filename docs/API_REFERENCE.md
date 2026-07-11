@@ -1,0 +1,139 @@
+# API Reference
+
+Version: 1.0
+
+This document defines the internal API structure of MjolnirOS.
+
+---
+
+# API Principles
+
+- RESTful APIs
+- JSON Responses
+- Proper HTTP Status Codes
+- Authentication where required
+- Modular endpoints
+
+---
+
+# Base URL
+
+http://localhost:8000/api/v1
+
+---
+
+# Core Endpoints
+
+## Health
+
+GET /health
+
+Returns application status.
+
+---
+
+## Chat
+
+POST /chat
+
+Input:
+
+- message
+
+Output:
+
+- response
+
+- conversation_id
+
+---
+
+## Memory
+
+GET /memory
+
+POST /memory
+
+DELETE /memory/{id}
+
+---
+
+## Windows
+
+POST /windows/open
+
+POST /windows/close
+
+POST /windows/search
+
+GET /windows/system
+
+---
+
+## Browser
+
+POST /browser/open
+
+POST /browser/search
+
+POST /browser/download
+
+POST /browser/upload
+
+---
+
+## GitHub
+
+POST /github/status
+
+POST /github/commit
+
+POST /github/push
+
+POST /github/pull
+
+---
+
+## Plugins
+
+GET /plugins
+
+POST /plugins/install
+
+DELETE /plugins/uninstall
+
+POST /plugins/update
+
+---
+
+## Settings
+
+GET /settings
+
+PUT /settings
+
+---
+
+## Logs
+
+GET /logs
+
+---
+
+## Agents
+
+GET /agents
+
+POST /agents/start
+
+POST /agents/stop
+
+---
+
+All endpoints must return
+
+{
+    "success": true,
+    "message": "",
+    "data": {}
+}

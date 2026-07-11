@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Environment
+.env
+
+# Logs
+logs/
+*.log
+
+# VS Code
+.vscode/
+
+# Node
+node_modules/
+
+# Electron
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Database
+*.db
+
+# Temporary
+*.tmp
+*.temp
