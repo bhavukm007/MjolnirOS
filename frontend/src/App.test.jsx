@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
-import App from "./App.jsx";
+import App, { SettingsScreen } from "./App.jsx";
 
 describe("App", () => {
   test("renders dashboard data from the backend", async () => {
@@ -35,5 +35,28 @@ describe("App", () => {
     expect(screen.getByText("MjolnirOS")).toBeInTheDocument();
     expect(screen.getByText("backend")).toBeInTheDocument();
     expect(screen.getByText("frontend")).toBeInTheDocument();
+  });
+
+  test("saves the Windows startup preference from desktop settings", async () => {
+    const setLaunchOnStartup = vi.fn(() => Promise.resolve({ launchOnStartup: true }));
+    Object.defineProperty(window, "mjolniros", {
+      configurable: true,
+      value: {
+        desktop: {
+          getSettings: () => Promise.resolve({ launchOnStartup: false }),
+          setLaunchOnStartup,
+          openMainWindow: vi.fn()
+        }
+      }
+    });
+
+    render(<SettingsScreen />);
+
+    const startupToggle = await screen.findByLabelText("Launch MjolnirOS when Windows starts");
+    expect(startupToggle).not.toBeChecked();
+    fireEvent.click(startupToggle);
+
+    await waitFor(() => expect(setLaunchOnStartup).toHaveBeenCalledWith(true));
+    expect(await screen.findByText("Windows startup is enabled.")).toBeInTheDocument();
   });
 });

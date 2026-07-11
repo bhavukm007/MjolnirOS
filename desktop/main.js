@@ -1,55 +1,44 @@
-const { app, BrowserWindow } = require("electron");
+"use strict";
+
+const { app, BrowserWindow, ipcMain, Menu, nativeImage, Tray } = require("electron");
 const path = require("node:path");
 
-const FRONTEND_URL = process.env.MJOLNIROS_FRONTEND_URL || "http://localhost:5173";
+const { DesktopSettingsStore } = require("./desktop_settings");
+const { DesktopLogger } = require("./logger");
+const { DesktopRuntime } = require("./runtime");
+
+const FRONTEND_URL = process.env.MJOLNIROS_FRONTEND_URL || "http://127.0.0.1:5173";
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-gpu-compositing");
+app.setName("MjolnirOS");
 
 function isSmokeMode() {
   return process.argv.includes("--smoke");
 }
 
-function createWindow() {
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 960,
-    minHeight: 640,
-    backgroundColor: "#090b10",
-    title: "MjolnirOS",
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
-
-  if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
-  } else {
-    mainWindow.loadURL(FRONTEND_URL);
-  }
-}
-
 app.whenReady().then(() => {
   if (isSmokeMode()) {
-    app.exit(0);
+    app.quit();
     return;
   }
 
-  createWindow();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+  const logger = new DesktopLogger(path.join(app.getPath("logs"), "desktop.log"));
+  const settingsStore = new DesktopSettingsStore(
+    path.join(app.getPath("userData"), "desktop-settings.json"),
+    logger
+  );
+  const runtime = new DesktopRuntime({
+    app,
+    BrowserWindow,
+    Tray,
+    Menu,
+    nativeImage,
+    ipcMain,
+    settingsStore,
+    logger,
+    frontendUrl: FRONTEND_URL
   });
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  runtime.initialize();
 });

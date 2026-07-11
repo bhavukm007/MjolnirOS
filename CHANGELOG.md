@@ -2,6 +2,17 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.2.0] - 2026-07-11
+
+### Added
+
+- Added the Electron desktop runtime with a Windows system tray and restore controls.
+- Added minimize-to-tray behavior, tray actions for open, settings, restart, and quit, and structured desktop logging.
+- Added a dedicated settings window with a persisted, opt-in Windows startup preference that defaults to disabled.
+- Added live CPU, RAM, current-model, and running-agent dashboard metrics.
+- Added `npm run dev` to launch FastAPI, Vite, and Electron together.
+- Added desktop runtime and settings persistence tests.
+
 ## [0.1.0] - 2026-07-11
 
 ### Added
