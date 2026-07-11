@@ -1,0 +1,22 @@
+{
+  "name": "mjolniros",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first Windows desktop operating assistant.",
+  "main": "desktop/main.js",
+  "scripts": {
+    "backend:dev": "uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload",
+    "backend:test": "pytest",
+    "frontend:dev": "npm run dev --prefix frontend",
+    "frontend:build": "npm run build --prefix frontend",
+    "frontend:test": "npm run test --prefix frontend",
+    "desktop:dev": "electron .",
+    "desktop:check": "node --check desktop/main.js && node --check desktop/preload.js",
+    "launch:smoke": "electron . --smoke",
+    "test": "npm run backend:test && npm run frontend:test && npm run desktop:check",
+    "build": "npm run frontend:build && npm run desktop:check"
+  },
+  "devDependencies": {
+    "electron": "40.10.2"
+  }
+}
