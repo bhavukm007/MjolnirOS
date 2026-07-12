@@ -2,6 +2,14 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.5.0] - 2026-07-12
+
+### Added
+
+- Added local SQLite memory storage with automatic schema migrations.
+- Added persistent ChromaDB semantic indexing and memory APIs.
+- Added automatic conversation persistence and typed memories for preferences, notes, todos, bookmarks, projects, workflows, GitHub repositories, coding preferences, and folder locations.
+
 ## [0.4.0] - 2026-07-12
 
 ### Added

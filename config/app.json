@@ -16,12 +16,15 @@
   "voice_wake_word": "Mjolnir",
   "voice_tts_rate": 185,
   "voice_tts_volume": 1.0,
+  "database_path": "database/mjolniros.db",
+  "chroma_path": "database/chroma",
   "enabled_foundation_modules": [
     "backend",
     "frontend",
     "desktop",
     "ai",
     "voice",
+    "memory",
     "configuration",
     "logging"
   ]

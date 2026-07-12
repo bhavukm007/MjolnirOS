@@ -11,6 +11,8 @@ from backend.app.ai.ollama_client import OllamaClient, OllamaUnavailableError
 from backend.app.core.responses import ApiResponse
 from backend.app.core.settings import get_settings
 from backend.app.domain.ai import AiHealthStatus, AiModelsStatus, ChatRequest
+from backend.app.domain.memory import MemoryCreate
+from backend.app.api.routes.memory import get_memory_store
 
 router = APIRouter(tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -75,12 +77,17 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     """Stream assistant content as NDJSON for the desktop chat interface."""
     settings = get_settings()
     model = request.model or settings.default_model
+    get_memory_store().save(MemoryCreate(memory_type="conversation", content=request.message, metadata={"role": "user"}))
 
     async def events() -> AsyncIterator[str]:
+        reply = ""
         try:
             async for content in get_ollama_client().stream_chat(model, request.history, request.message):
                 if content:
+                    reply += content
                     yield _event("token", content=content)
+            if reply:
+                get_memory_store().save(MemoryCreate(memory_type="conversation", content=reply, metadata={"role": "assistant"}))
             yield _event("done")
         except OllamaUnavailableError as error:
             logger.warning("ollama_stream_failed", extra={"model": model})

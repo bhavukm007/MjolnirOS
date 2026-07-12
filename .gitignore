@@ -38,6 +38,7 @@ htmlcov/
 
 # Database
 *.db
+database/chroma/
 
 # Temporary
 *.tmp
