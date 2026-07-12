@@ -18,6 +18,9 @@ class PublicSettings(BaseSettings):
     api_prefix: str
     default_model: str
     ollama_base_url: str
+    voice_enabled: bool
+    voice_sample_rate: int
+    voice_wake_word: str
     enabled_foundation_modules: list[str]
 
 
@@ -42,6 +45,12 @@ class AppSettings(BaseSettings):
     default_model: str = "qwen2.5:3b"
     ollama_base_url: str = "http://127.0.0.1:11434/api"
     ollama_timeout_seconds: float = 120.0
+    voice_enabled: bool = True
+    voice_model_path: Path = Path("assets/models/vosk-model-small-en-us-0.15")
+    voice_sample_rate: int = 16_000
+    voice_wake_word: str = "Mjolnir"
+    voice_tts_rate: int = 185
+    voice_tts_volume: float = 1.0
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
 
@@ -53,6 +62,9 @@ class AppSettings(BaseSettings):
             api_prefix=self.api_prefix,
             default_model=self.default_model,
             ollama_base_url=self.ollama_base_url,
+            voice_enabled=self.voice_enabled,
+            voice_sample_rate=self.voice_sample_rate,
+            voice_wake_word=self.voice_wake_word,
             enabled_foundation_modules=self.enabled_foundation_modules,
         )
 

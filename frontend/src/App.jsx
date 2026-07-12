@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bot,
   ChevronDown,
   Cpu,
   HardDrive,
+  Mic,
+  MicOff,
   MonitorCog,
   Send,
   Settings,
   ShieldCheck,
   Sparkles
 } from "lucide-react";
+import { VoiceRuntime } from "./voice_runtime.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
@@ -84,6 +87,13 @@ async function streamChat(payload, onEvent) {
   if (buffer) {
     onEvent(JSON.parse(buffer));
   }
+}
+
+async function requestVoice(path, options) {
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
+  const body = await response.json();
+  if (!response.ok || !body.success) throw new Error(body.detail ?? body.message ?? "Voice request failed.");
+  return body.data;
 }
 
 function getDesktopApi() {
@@ -236,6 +246,10 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
   const [draft, setDraft] = useState("");
   const [selectedModel, setSelectedModel] = useState(defaultModel);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [voiceState, setVoiceState] = useState("Voice is loading");
+  const [voiceAvailable, setVoiceAvailable] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const voiceRuntime = useRef(null);
 
   useEffect(() => {
     const availableNames = models.map((model) => model.name);
@@ -245,9 +259,16 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
     setSelectedModel(availableNames[0] ?? defaultModel);
   }, [defaultModel, models, selectedModel]);
 
-  async function submitMessage(event) {
-    event.preventDefault();
-    const content = draft.trim();
+  useEffect(() => {
+    requestVoice("/voice/health").then((voice) => {
+      setVoiceAvailable(voice.available);
+      setVoiceState(voice.available ? `Ready — say “${voice.wake_word}”` : voice.message);
+    }).catch(() => setVoiceState("Voice backend is unavailable"));
+  }, []);
+
+  useEffect(() => () => { voiceRuntime.current?.stop(); }, []);
+
+  async function sendMessage(content, speakReply = false) {
     if (!content || isStreaming || !aiHealth.available) {
       return;
     }
@@ -256,10 +277,12 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
     setMessages((current) => [...current, { role: "user", content }, { role: "assistant", content: "" }]);
     setDraft("");
     setIsStreaming(true);
+    let reply = "";
 
     try {
       await streamChat({ message: content, model: selectedModel, history }, (eventData) => {
         if (eventData.type === "token") {
+          reply += eventData.content;
           setMessages((current) => current.map((message, index) => (
             index === current.length - 1
               ? { ...message, content: `${message.content}${eventData.content}` }
@@ -270,6 +293,9 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
           throw new Error(eventData.message);
         }
       });
+      if (speakReply && reply) {
+        await requestVoice("/voice/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: reply }) });
+      }
     } catch (error) {
       setMessages((current) => current.map((message, index) => (
         index === current.length - 1
@@ -278,6 +304,33 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
       )));
     } finally {
       setIsStreaming(false);
+    }
+  }
+
+  function submitMessage(event) {
+    event.preventDefault();
+    void sendMessage(draft.trim());
+  }
+
+  async function toggleListening() {
+    if (isListening) {
+      await voiceRuntime.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const runtime = new VoiceRuntime({
+      apiBaseUrl: API_BASE_URL,
+      onCommand: (command) => { void sendMessage(command, true); },
+      onState: setVoiceState,
+      onInterruption: () => { void requestVoice("/voice/speak", { method: "DELETE" }); }
+    });
+    voiceRuntime.current = runtime;
+    try {
+      await runtime.start();
+      setIsListening(true);
+    } catch (error) {
+      await runtime.stop();
+      setVoiceState(error.message);
     }
   }
 
@@ -305,7 +358,13 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
           </select>
           <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-2.5 top-2.5 text-slate-400" size={15} />
         </div>
+        <button aria-label={isListening ? "Stop voice listening" : "Start voice listening"} className="command-button" disabled={!voiceAvailable} onClick={() => void toggleListening()} type="button">
+          {isListening ? <MicOff aria-hidden="true" size={16} /> : <Mic aria-hidden="true" size={16} />}
+          <span>{isListening ? "Stop voice" : "Start voice"}</span>
+        </button>
       </header>
+
+      <p aria-live="polite" className="border-b border-slate-700/50 px-5 py-2 text-xs text-teal-100">{voiceState}</p>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-5 py-5" aria-live="polite">
         {messages.length === 0 ? (

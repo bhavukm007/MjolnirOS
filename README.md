@@ -1,6 +1,6 @@
 # MjolnirOS
 
-MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. Phases 01 through 03 establish the production foundation, desktop runtime, and local AI runtime: project structure, centralized configuration, structured logging, backend API, live dashboard, Electron tray behavior, settings, Ollama chat, Docker support, and tests.
+MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. Phases 01 through 04 establish the production foundation, desktop runtime, local AI runtime, and offline voice interaction.
 
 ## Current Scope
 
@@ -9,11 +9,12 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Electron desktop runtime with a system tray, minimize-to-tray lifecycle, restore controls, and smoke validation.
 - Dedicated settings window with a persisted, opt-in Windows startup preference. Startup is off by default.
 - Local Ollama health monitoring, installed-model selection, and streamed chat responses.
+- Offline continuous microphone listening with Vosk speech recognition, tolerant “Mjolnir” wake-word matching, local text-to-speech, and natural speech interruption.
 - Centralized JSON and environment-based configuration.
 - Structured JSON logging to console and `logs/mjolniros.log`.
 - Docker Compose support for backend and frontend.
 
-Future capabilities such as voice, memory, Windows automation, browser automation, and plugins are intentionally reserved for later documented phases.
+Future capabilities such as persistent memory, Windows automation, browser automation, and plugins are intentionally reserved for later documented phases.
 
 ## Requirements
 
@@ -71,6 +72,10 @@ ollama pull qwen2.5:3b
 ```
 
 The dashboard reports when Ollama is unavailable and does not send data to any cloud provider. The Ollama base URL and timeout can be configured with `MJOLNIROS_OLLAMA_BASE_URL` and `MJOLNIROS_OLLAMA_TIMEOUT_SECONDS`.
+
+## Voice
+
+Voice recognition stays local using Vosk and the operating system's offline voices. Download the small English Vosk model from the [official Vosk models page](https://alphacephei.com/vosk/models), extract it to `assets/models/vosk-model-small-en-us-0.15`, then start MjolnirOS and select **Start voice**. Say “Mjolnir” (for example, “Me-oh-neer”) before a request. Speaking while MjolnirOS is replying interrupts local speech naturally. Configure the model path, sample rate, wake word, and voice output through the `MJOLNIROS_VOICE_*` variables in `.env.example`.
 
 ## Verification
 

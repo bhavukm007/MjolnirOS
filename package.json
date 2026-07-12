@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names backend,frontend,desktop --prefix-colors blue,green,magenta \"npm run backend:dev\" \"npm run frontend:dev\" \"npm run desktop:runtime\"",
     "backend:dev": "uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload",
-    "backend:test": "pytest",
+    "backend:test": ".\\.venv\\Scripts\\python.exe -m pytest",
     "frontend:dev": "npm run dev --prefix frontend",
     "frontend:build": "npm run build --prefix frontend",
     "frontend:test": "npm run test --prefix frontend",

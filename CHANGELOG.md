@@ -2,6 +2,15 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.4.0] - 2026-07-12
+
+### Added
+
+- Added offline Vosk speech recognition with continuous low-overhead microphone streaming.
+- Added tolerant Mjolnir wake-word detection, including common phonetic pronunciations.
+- Added offline operating-system text-to-speech and immediate speech interruption for barge-in.
+- Added voice API endpoints, voice runtime health checks, centralized voice configuration, and regression tests.
+
 ## [0.3.0] - 2026-07-12
 
 ### Added
