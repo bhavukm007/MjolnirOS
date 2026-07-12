@@ -41,6 +41,11 @@ class AppSettings(BaseSettings):
     default_model: str = "qwen2.5:3b"
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
+    vision_upload_directory: Path = Field(default=Path("database/documents"))
+    vision_max_upload_bytes: int = 20_000_000
+    vision_max_extract_characters: int = 100_000
+    tesseract_command: str | None = None
+    ollama_url: str = "http://127.0.0.1:11434"
 
     def to_public_settings(self) -> PublicSettings:
         """Return frontend-safe settings."""

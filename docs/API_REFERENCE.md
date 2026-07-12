@@ -92,6 +92,36 @@ POST /github/push
 
 POST /github/pull
 
+## Vision & Documents
+
+POST /vision/analyze
+
+Upload an image as `multipart/form-data` field `file` for local OCR, UI recognition, and error detection.
+
+POST /vision/capture
+
+Explicitly capture and analyze the primary desktop.
+
+POST /documents
+
+Upload a PDF, DOCX, XLSX, PPTX, TXT, or Markdown file as `multipart/form-data` field `file`.
+
+GET /documents
+
+GET /documents/{id}
+
+GET /documents/{id}/tables
+
+POST /documents/{id}/summarize
+
+POST /documents/{id}/questions
+
+Input: `{ "question": "..." }`
+
+POST /documents/{id}/translate
+
+Input: `{ "target_language": "Hindi" }`. Translation is performed only through the configured local Ollama instance.
+
 ---
 
 ## Plugins

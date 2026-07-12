@@ -1,8 +1,8 @@
 # MjolnirOS
 
-MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. Phase 01 establishes the production foundation only: project structure, centralized configuration, structured logging, backend API, frontend dashboard, Electron shell, Docker support, and tests.
+MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. It includes the Phase 10 Vision & Document Agent, with private document processing and screenshot understanding.
 
-## Phase 01 Scope
+## Current capabilities
 
 - FastAPI backend with `/api/v1/health` and `/api/v1/settings`.
 - React dashboard that reads backend health and configuration state.
@@ -10,6 +10,14 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Centralized JSON and environment-based configuration.
 - Structured JSON logging to console and `logs/mjolniros.log`.
 - Docker Compose support for backend and frontend.
+- Drag-and-drop local processing for PDF, DOCX, XLSX, PPTX, TXT, and Markdown documents.
+- Extractive document summaries, table extraction, and offline document questions.
+- Screenshot OCR, probable button recognition, and visible error detection using Tesseract.
+- Optional document translation through a locally running Ollama model; no document data is sent to a cloud service.
+
+## Vision & Document setup
+
+OCR requires [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) to be installed and available on `PATH`. If it is installed elsewhere, set `MJOLNIROS_TESSERACT_COMMAND` to its executable path. Uploads are stored locally in `database/documents/`, are limited to 20 MB by default, and can be configured through `config/app.json` or environment variables.
 
 Future capabilities such as Ollama chat, voice, memory, Windows automation, browser automation, plugins, and tray behavior are intentionally reserved for later documented phases.
 

@@ -11,8 +11,8 @@ const initialHealth = {
   modules: []
 };
 
-async function fetchJson(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+async function fetchJson(path, options) {
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
   if (!response.ok) {
     throw new Error(`Request failed with status ${response.status}`);
   }
@@ -27,6 +27,12 @@ export default function App() {
   const [health, setHealth] = useState(initialHealth);
   const [settings, setSettings] = useState(null);
   const [connectionState, setConnectionState] = useState("connecting");
+  const [document, setDocument] = useState(null);
+  const [documentResult, setDocumentResult] = useState(null);
+  const [visionResult, setVisionResult] = useState(null);
+  const [question, setQuestion] = useState("");
+  const [agentState, setAgentState] = useState("idle");
+  const [agentError, setAgentError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -58,6 +64,66 @@ export default function App() {
   }, []);
 
   const moduleCount = useMemo(() => health.modules.length, [health.modules]);
+
+  async function sendFile(path, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", body: formData });
+    const body = await response.json();
+    if (!response.ok || !body.success) {
+      throw new Error(body.detail ?? body.message ?? "The request failed.");
+    }
+    return body.data;
+  }
+
+  async function processDocument(file) {
+    setAgentState("processing");
+    setAgentError("");
+    setDocumentResult(null);
+    try {
+      const result = await sendFile("/documents", file);
+      setDocument(result);
+      const summary = await fetchJson(`/documents/${result.id}/summarize`, { method: "POST" });
+      setDocumentResult(summary);
+      setAgentState("ready");
+    } catch (error) {
+      setAgentError(error.message);
+      setAgentState("error");
+    }
+  }
+
+  async function analyzeScreenshot(file) {
+    setAgentState("processing");
+    setAgentError("");
+    try {
+      const result = await sendFile("/vision/analyze", file);
+      setVisionResult(result);
+      setAgentState("ready");
+    } catch (error) {
+      setAgentError(error.message);
+      setAgentState("error");
+    }
+  }
+
+  async function askQuestion(event) {
+    event.preventDefault();
+    if (!document || !question.trim()) return;
+    setAgentState("processing");
+    try {
+      const response = await fetch(`${API_BASE_URL}/documents/${document.id}/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.detail ?? body.message);
+      setDocumentResult((current) => ({ ...current, answer: body.data.answer, sources: body.data.sources }));
+      setAgentState("ready");
+    } catch (error) {
+      setAgentError(error.message);
+      setAgentState("error");
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#090b10] text-slate-100">
@@ -104,9 +170,93 @@ export default function App() {
               <RuntimeRow label="Logging" value="Structured JSON" />
             </dl>
           </div>
+
+          <section className="grid gap-6 lg:grid-cols-2">
+            <UploadPanel
+              title="Document Agent"
+              description="Drop a PDF, Word, Excel, PowerPoint, text, or Markdown file to read, extract tables, and summarize it locally."
+              accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.markdown"
+              onFile={processDocument}
+            />
+            <UploadPanel
+              title="Vision Agent"
+              description="Drop a screenshot or image to run local OCR, recognize probable buttons, and surface visible errors."
+              accept="image/*"
+              onFile={analyzeScreenshot}
+            />
+          </section>
+
+          {(agentState !== "idle" || agentError) && (
+            <div className={`rounded-md border px-4 py-3 text-sm ${agentState === "error" ? "border-red-400/40 bg-red-500/10 text-red-200" : "border-cyan-400/30 bg-cyan-500/10 text-cyan-100"}`}>
+              {agentError || `Vision & Document Agent: ${agentState}`}
+            </div>
+          )}
+
+          <section className="grid gap-6 lg:grid-cols-2">
+            <DocumentResult document={document} result={documentResult} question={question} onQuestionChange={setQuestion} onAsk={askQuestion} />
+            <VisionResult result={visionResult} />
+          </section>
         </section>
       </section>
     </main>
+  );
+}
+
+function UploadPanel({ title, description, accept, onFile }) {
+  const [dragging, setDragging] = useState(false);
+
+  function selectFile(file) {
+    if (file) onFile(file);
+  }
+
+  return (
+    <label
+      className={`cursor-pointer rounded-md border border-dashed p-6 transition ${dragging ? "border-cyan-300 bg-cyan-300/10" : "border-white/20 bg-white/[0.04] hover:border-white/40"}`}
+      onDragEnter={() => setDragging(true)}
+      onDragLeave={() => setDragging(false)}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragging(false);
+        selectFile(event.dataTransfer.files[0]);
+      }}
+    >
+      <input className="sr-only" type="file" accept={accept} onChange={(event) => selectFile(event.target.files[0])} />
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+      <span className="mt-5 inline-block rounded bg-white/10 px-3 py-2 text-xs font-medium text-cyan-100">Choose file or drop it here</span>
+    </label>
+  );
+}
+
+function DocumentResult({ document, result, question, onQuestionChange, onAsk }) {
+  return (
+    <div className="min-h-64 rounded-md border border-white/10 bg-white/[0.04] p-5">
+      <h2 className="text-lg font-semibold">Document workspace</h2>
+      {!document ? <p className="mt-4 text-sm text-slate-400">Upload a document to begin.</p> : <>
+        <p className="mt-3 text-sm text-cyan-100">{document.filename} · {document.document_type.toUpperCase()} · {document.tables.length} table(s)</p>
+        {result?.summary && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-200">{result.summary}</p>}
+        {result?.answer && <div className="mt-4 rounded bg-black/20 p-3 text-sm text-slate-200">{result.answer}</div>}
+        <form className="mt-5 flex gap-2" onSubmit={onAsk}>
+          <input className="min-w-0 flex-1 rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" value={question} onChange={(event) => onQuestionChange(event.target.value)} placeholder="Ask about this document" />
+          <button className="rounded bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950" type="submit">Ask</button>
+        </form>
+      </>}
+    </div>
+  );
+}
+
+function VisionResult({ result }) {
+  return (
+    <div className="min-h-64 rounded-md border border-white/10 bg-white/[0.04] p-5">
+      <h2 className="text-lg font-semibold">Screenshot understanding</h2>
+      {!result ? <p className="mt-4 text-sm text-slate-400">Upload a screenshot to inspect it locally.</p> : <>
+        <p className="mt-3 text-sm text-cyan-100">{result.summary}</p>
+        {result.errors.length > 0 && <p className="mt-3 text-sm text-amber-200">Possible errors: {result.errors.join(" · ")}</p>}
+        {result.ui_elements.length > 0 && <p className="mt-3 text-sm text-slate-300">Buttons: {result.ui_elements.map((element) => element.label).join(", ")}</p>}
+        <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-black/20 p-3 text-xs text-slate-300">{result.text || "No text detected."}</pre>
+      </>}
+    </div>
   );
 }
 

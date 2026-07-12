@@ -364,6 +364,10 @@ Future
 
 Camera understanding
 
+## Phase 10 implementation
+
+The Vision & Document Agent is implemented in `backend/app/vision`. `DocumentService` accepts supported uploads, stores them in the local application data directory, extracts text and tables through format-specific adapters, and supplies offline extractive summaries and question answers. `VisionService` uses locally installed Tesseract OCR for screenshot text, probable button labels, and visible error detection. The API route remains the integration boundary; neither service depends on the desktop UI.
+
 ---
 
 # Plugin Manager

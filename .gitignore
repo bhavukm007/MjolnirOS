@@ -30,11 +30,13 @@ Thumbs.db
 
 # Testing
 .pytest_cache/
+.pytest_tmp/
 .coverage
 htmlcov/
 
 # Database
 *.db
+database/documents/
 
 # Temporary
 *.tmp

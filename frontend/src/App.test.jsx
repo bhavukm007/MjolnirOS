@@ -35,5 +35,7 @@ describe("App", () => {
     expect(screen.getByText("MjolnirOS")).toBeInTheDocument();
     expect(screen.getByText("backend")).toBeInTheDocument();
     expect(screen.getByText("frontend")).toBeInTheDocument();
+    expect(screen.getByText("Document Agent")).toBeInTheDocument();
+    expect(screen.getByText("Vision Agent")).toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@
   "main": "desktop/main.js",
   "scripts": {
     "backend:dev": "uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload",
-    "backend:test": "pytest",
+    "backend:test": ".\\.venv\\Scripts\\python.exe -m pytest --basetemp .pytest_tmp",
     "frontend:dev": "npm run dev --prefix frontend",
     "frontend:build": "npm run build --prefix frontend",
     "frontend:test": "npm run test --prefix frontend",
