@@ -27,6 +27,9 @@
   "browser_summary_timeout_seconds": 30,
   "github_api_base_url": "https://api.github.com",
   "github_default_repository": ".",
+  "coding_vscode_command": "code",
+  "coding_project_roots": ["."],
+  "coding_command_timeout_seconds": 120,
   "enabled_foundation_modules": [
     "backend",
     "frontend",

@@ -63,6 +63,9 @@ class AppSettings(BaseSettings):
     github_api_base_url: str = "https://api.github.com"
     github_token: str | None = None
     github_default_repository: Path = Path(".")
+    coding_vscode_command: str = "code"
+    coding_project_roots: list[Path] = Field(default_factory=lambda: [Path.cwd()])
+    coding_command_timeout_seconds: float = 120.0
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
 

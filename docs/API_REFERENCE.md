@@ -112,6 +112,12 @@ POST /github/actions
 
 GitHub actions return structured results. Force pushes, merges, branch deletion, public repository creation, and pulls over local changes require `confirmed: true`. Tokens are only read from the current process environment and are never returned.
 
+## Coding
+
+POST /coding/actions
+
+Coding actions open VS Code workspaces, folders, and files; reveal files; open the integrated terminal; execute commands with captured stdout, stderr, and exit code; and manage remembered workspaces. Commands containing destructive operations require `confirmed: true`.
+
 ---
 
 ## Plugins

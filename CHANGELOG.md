@@ -2,6 +2,14 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.9.0] - 2026-07-12
+
+### Added
+
+- Added the Coding Agent with VS Code workspace, project, folder, file, reveal, and integrated-terminal actions.
+- Added local terminal execution with captured stdout, stderr, exit codes, structured responses, and destructive-command confirmation gates.
+- Added multi-project discovery, active workspace switching, Memory System persistence, and typed/voice natural-language routing for common coding commands.
+
 ## [0.8.0] - 2026-07-12
 
 ### Added

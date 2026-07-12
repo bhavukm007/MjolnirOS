@@ -1,6 +1,6 @@
 # MjolnirOS
 
-MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. Phases 01 through 04 establish the production foundation, desktop runtime, local AI runtime, and offline voice interaction.
+MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. Phases 01 through 09A establish the production foundation, desktop runtime, local AI, voice, memory, Windows, browser, GitHub, and IDE/terminal agents.
 
 ## Current Scope
 
@@ -19,6 +19,8 @@ MjolnirOS now persists conversations and typed local memories using SQLite, with
 The Browser Agent uses local Playwright automation with persistent, per-browser local profiles for Chrome, Edge, and Firefox. It can open pages, search Google, read and summarize pages through local Ollama (with an offline extractive fallback), manage tabs, select uploads, save local bookmarks, take screenshots, and download files. Login pages always require credentials, MFA, and CAPTCHA interaction directly in the browser. Form submissions and executable downloads require an explicit confirmation.
 
 The GitHub Agent performs local Git operations through the existing Git credential manager and calls the official GitHub REST API only for repository, issue, and pull-request requests. Personal access tokens are read only from the current process environment and are never persisted or returned.
+
+The Coding Agent integrates with the locally installed VS Code command line to open workspaces, projects, folders, files, and the integrated terminal. `POST /api/v1/coding/actions` executes terminal commands locally and returns captured stdout, stderr, and exit code. It discovers projects from configured roots and remembers the active workspace in local memory. Commands containing destructive operations require `confirmed: true`.
 
 ## Requirements
 
