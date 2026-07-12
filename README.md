@@ -15,6 +15,7 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Docker Compose support for backend and frontend.
 
 MjolnirOS now persists conversations and typed local memories using SQLite, with ChromaDB semantic retrieval. Windows automation, browser automation, and plugins are reserved for later documented phases.
+MjolnirOS also provides a local Windows Control Agent for applications, files, system information, clipboard, screenshots, and Task Manager. Destructive file and Recycle Bin actions require explicit confirmation.
 
 ## Requirements
 

@@ -18,6 +18,8 @@
   "voice_tts_volume": 1.0,
   "database_path": "database/mjolniros.db",
   "chroma_path": "database/chroma",
+  "windows_search_root": "C:/Users",
+  "windows_screenshot_path": "assets/screenshots",
   "enabled_foundation_modules": [
     "backend",
     "frontend",
@@ -25,6 +27,7 @@
     "ai",
     "voice",
     "memory",
+    "windows",
     "configuration",
     "logging"
   ]

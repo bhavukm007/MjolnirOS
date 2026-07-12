@@ -53,6 +53,8 @@ class AppSettings(BaseSettings):
     voice_tts_volume: float = 1.0
     database_path: Path = Path("database/mjolniros.db")
     chroma_path: Path = Path("database/chroma")
+    windows_search_root: Path = Path("C:/Users")
+    windows_screenshot_path: Path = Path("assets/screenshots")
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
 

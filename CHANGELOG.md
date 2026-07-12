@@ -2,6 +2,13 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.6.0] - 2026-07-12
+
+### Added
+
+- Added the local Windows Control Agent with application, Explorer, file, system, clipboard, screenshot, Task Manager, network, Bluetooth, and power utilities.
+- Added structured Windows action responses and mandatory confirmation gates for file deletion and Recycle Bin emptying.
+
 ## [0.5.0] - 2026-07-12
 
 ### Added
