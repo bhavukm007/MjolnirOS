@@ -2,6 +2,12 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.8.0] - 2026-07-12
+
+### Added
+
+- Added a GitHub Agent for safe local Git operations, GitHub REST repository, issue, and pull-request actions, natural-language command routing, and local repository memory.
+
 ## [0.7.0] - 2026-07-12
 
 ### Added

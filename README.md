@@ -18,6 +18,8 @@ MjolnirOS now persists conversations and typed local memories using SQLite, with
 
 The Browser Agent uses local Playwright automation with persistent, per-browser local profiles for Chrome, Edge, and Firefox. It can open pages, search Google, read and summarize pages through local Ollama (with an offline extractive fallback), manage tabs, select uploads, save local bookmarks, take screenshots, and download files. Login pages always require credentials, MFA, and CAPTCHA interaction directly in the browser. Form submissions and executable downloads require an explicit confirmation.
 
+The GitHub Agent performs local Git operations through the existing Git credential manager and calls the official GitHub REST API only for repository, issue, and pull-request requests. Personal access tokens are read only from the current process environment and are never persisted or returned.
+
 ## Requirements
 
 - Python 3.12+

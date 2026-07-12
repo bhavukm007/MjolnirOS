@@ -108,6 +108,10 @@ POST /github/push
 
 POST /github/pull
 
+POST /github/actions
+
+GitHub actions return structured results. Force pushes, merges, branch deletion, public repository creation, and pulls over local changes require `confirmed: true`. Tokens are only read from the current process environment and are never returned.
+
 ---
 
 ## Plugins

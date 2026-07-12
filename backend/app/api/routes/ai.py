@@ -17,6 +17,8 @@ from backend.app.api.routes.windows import get_windows_controller
 from backend.app.api.routes.browser import get_browser_controller
 from backend.app.browser.natural_language import parse_browser_command
 from backend.app.windows.natural_language import execute_natural_command
+from backend.app.api.routes.github import get_github_controller
+from backend.app.github.natural_language import parse_github_command
 
 router = APIRouter(tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -88,6 +90,13 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
             yield _event("token", content=browser_result.message)
             yield _event("done")
         return StreamingResponse(browser_events(), media_type="application/x-ndjson")
+    github_request = parse_github_command(request.message)
+    if github_request is not None:
+        github_result = await get_github_controller().execute(github_request)
+        async def github_events() -> AsyncIterator[str]:
+            yield _event("token", content=github_result.message)
+            yield _event("done")
+        return StreamingResponse(github_events(), media_type="application/x-ndjson")
     action_result = execute_natural_command(request.message, get_windows_controller())
     if action_result is not None:
         async def action_events() -> AsyncIterator[str]:

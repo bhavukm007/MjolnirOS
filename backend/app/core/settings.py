@@ -60,6 +60,9 @@ class AppSettings(BaseSettings):
     browser_screenshot_path: Path = Path("assets/browser_screenshots")
     browser_headless: bool = False
     browser_summary_timeout_seconds: float = 30.0
+    github_api_base_url: str = "https://api.github.com"
+    github_token: str | None = None
+    github_default_repository: Path = Path(".")
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
 
