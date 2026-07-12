@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 import json
+import os
 from pathlib import Path
 
 from pydantic import Field
@@ -99,4 +100,7 @@ def get_settings() -> AppSettings:
     """Load settings from config/app.json and environment variables."""
     base_settings = AppSettings()
     file_settings = _load_file_settings(base_settings.config_file)
+    for key in tuple(file_settings):
+        if f"MJOLNIROS_{key.upper()}" in os.environ:
+            file_settings.pop(key)
     return AppSettings(**file_settings)
