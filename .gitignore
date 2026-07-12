@@ -41,3 +41,9 @@ database/documents/
 # Temporary
 *.tmp
 *.temp
+
+# AI Models
+assets/models/
+
+# Chroma Vector Database
+database/chroma/
