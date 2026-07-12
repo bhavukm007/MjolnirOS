@@ -16,6 +16,7 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Optional document translation through a locally running Ollama model; no document data is sent to a cloud service.
 - Automation Engine & Planner with built-in routines, saved custom workflows, visible dependency-aware progress, cancellation, and local goal decomposition.
 - Learning Mode with local habit observations, inferred preferences, and user-approved automation recommendations.
+- Plugin Manager with a local marketplace, manifest validation, dependency checks, permission declarations, and restart-free isolated loading.
 
 ## Learning Mode
 
@@ -29,7 +30,13 @@ The Automation Engine stores workflows locally in `database/automation/`. Built-
 
 OCR requires [Tesseract OCR](https://github.com/tesseract-ocr/tesseract). On Windows, install it with `winget install --id UB-Mannheim.TesseractOCR -e`, then restart the terminal so the installer can add it to `PATH`. MjolnirOS checks an explicitly configured `MJOLNIROS_TESSERACT_COMMAND` first, then `PATH`, then standard Windows installation roots. If the executable is installed elsewhere, set `MJOLNIROS_TESSERACT_COMMAND` to its full path. Uploads are stored locally in `database/documents/`, are limited to 20 MB by default, and can be configured through `config/app.json` or environment variables.
 
-Future capabilities such as Ollama chat, voice, memory, Windows automation, browser automation, plugins, and tray behavior are intentionally reserved for later documented phases.
+Future capabilities such as cloud synchronization, mobile access, and enterprise deployment are intentionally reserved for later documented phases.
+
+## Plugin System
+
+Phase 13 provides a local-first plugin SDK. On first use, the Plugin Manager materializes the Spotify, Weather, Calculator, Clock, GitHub, and Docker plugins in `plugins/`. Each plugin has `manifest.json`, `permissions.json`, `plugin.py`, and `README.md`. The dashboard marketplace supports category browsing, search, loading, installation, updates, and uninstallation without a backend restart.
+
+Plugins declare only the reviewed capabilities they need (`automation`, `browser`, `memory`, `network`, or `system`). The manager validates manifests and semantic-version dependencies before activation, then invokes the entry point in an isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
 
 ## Requirements
 

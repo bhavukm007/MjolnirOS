@@ -39,6 +39,8 @@ htmlcov/
 database/documents/
 database/automation/
 database/learning/
+plugins/.defaults_seeded
+plugins/*/
 
 # Temporary
 *.tmp

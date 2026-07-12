@@ -41,5 +41,6 @@ describe("App", () => {
     expect(screen.getByText("Vision Agent")).toBeInTheDocument();
     expect(screen.getByText("Automation & Planner")).toBeInTheDocument();
     expect(screen.getByText("Learning Mode")).toBeInTheDocument();
+    expect(screen.getByText("Plugin Marketplace")).toBeInTheDocument();
   });
 });

@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    {"id": "spotify", "name": "Spotify", "version": "1.0.0", "description": "Control Spotify through approved local actions.", "category": "Media"},
+    {"id": "weather", "name": "Weather", "version": "1.0.0", "description": "Retrieve weather through an approved provider.", "category": "Information"},
+    {"id": "calculator", "name": "Calculator", "version": "1.0.0", "description": "Perform local calculator operations.", "category": "Utilities"},
+    {"id": "clock", "name": "Clock", "version": "1.0.0", "description": "Show local time and timers.", "category": "Utilities"},
+    {"id": "github", "name": "GitHub", "version": "1.0.0", "description": "Extend the existing GitHub Agent safely.", "category": "Development"},
+    {"id": "docker", "name": "Docker", "version": "1.0.0", "description": "Extend the existing Development Agent safely.", "category": "Development"}
+  ]
+}

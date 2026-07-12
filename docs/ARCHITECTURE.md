@@ -376,6 +376,10 @@ The Automation Engine is implemented in `backend/app/automation`. `AutomationSer
 
 Learning Mode is implemented in `backend/app/learning`. `LearningService` stores typed, non-sensitive local observations, derives durable preference inferences, and detects recurring routines. Suggestions are persisted in a pending state and may create an Automation workflow only through the explicit approval endpoint. This keeps learning observational and privacy-first while allowing later agents to record activity through the same stable API.
 
+## Phase 13 implementation
+
+The Plugin System is implemented in `backend/app/plugins`. `PluginService` discovers versioned plugin folders, validates manifests, declared permissions, and dependency versions, and invokes entry points in a separate isolated Python interpreter so plugin code never enters the FastAPI process. The API and dashboard provide local marketplace discovery, categories, search, dynamic loading, installation, updates, and safe dependency-aware removal. Plugins remain extension packages with the stable `manifest.json`, `permissions.json`, `plugin.py`, and `README.md` contract.
+
 ---
 
 # Plugin Manager

@@ -49,6 +49,9 @@ class AppSettings(BaseSettings):
     automation_storage_directory: Path = Field(default=Path("database/automation"))
     learning_storage_directory: Path = Field(default=Path("database/learning"))
     learning_suggestion_threshold: int = Field(default=3, ge=2, le=100)
+    plugin_directory: Path = Field(default=Path("plugins"))
+    plugin_catalog_file: Path = Field(default=Path("plugins/catalog.json"))
+    plugin_load_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
 
     def to_public_settings(self) -> PublicSettings:
         """Return frontend-safe settings."""

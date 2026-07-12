@@ -2,6 +2,14 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.13.0] - 2026-07-12
+
+### Added
+
+- Added the local Plugin SDK, manifest and permissions validation, semantic-version dependency checks, and process-isolated dynamic loading.
+- Added plugin install, uninstall, update, marketplace search, category, and management APIs with dashboard controls.
+- Added packaged Spotify, Weather, Calculator, Clock, GitHub, and Docker plugins plus API coverage for plugin lifecycle and permission validation.
+
 ## [0.12.0] - 2026-07-12
 
 ### Added

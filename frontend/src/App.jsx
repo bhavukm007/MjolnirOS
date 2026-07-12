@@ -44,6 +44,11 @@ export default function App() {
   const [learningKind, setLearningKind] = useState("application");
   const [learningValue, setLearningValue] = useState("");
   const [learningError, setLearningError] = useState("");
+  const [marketplace, setMarketplace] = useState([]);
+  const [pluginCategories, setPluginCategories] = useState([]);
+  const [pluginSearch, setPluginSearch] = useState("");
+  const [pluginCategory, setPluginCategory] = useState("");
+  const [pluginError, setPluginError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -184,6 +189,35 @@ export default function App() {
       if (decision === "approve") await loadWorkflows();
     } catch (error) {
       setLearningError(error.message);
+    }
+  }
+
+  async function loadMarketplace() {
+    try {
+      setPluginError("");
+      const query = new URLSearchParams();
+      if (pluginSearch.trim()) query.set("search", pluginSearch.trim());
+      if (pluginCategory) query.set("category", pluginCategory);
+      const suffix = query.size ? `?${query}` : "";
+      const [plugins, categories] = await Promise.all([
+        fetchJson(`/plugins/marketplace${suffix}`),
+        fetchJson("/plugins/categories")
+      ]);
+      setMarketplace(plugins);
+      setPluginCategories(categories);
+    } catch (error) {
+      setPluginError(error.message);
+    }
+  }
+
+  async function managePlugin(plugin, action) {
+    try {
+      setPluginError("");
+      const path = action === "uninstall" ? `/plugins/${plugin.manifest.id}` : `/plugins/${plugin.manifest.id}/${action}`;
+      await fetchJson(path, { method: action === "uninstall" ? "DELETE" : "POST" });
+      await loadMarketplace();
+    } catch (error) {
+      setPluginError(error.message);
     }
   }
 
@@ -338,9 +372,22 @@ export default function App() {
           />
 
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
+
+          <PluginPanel marketplace={marketplace} categories={pluginCategories} search={pluginSearch} category={pluginCategory} error={pluginError} onSearchChange={setPluginSearch} onCategoryChange={setPluginCategory} onLoad={loadMarketplace} onManage={managePlugin} />
         </section>
       </section>
     </main>
+  );
+}
+
+function PluginPanel({ marketplace, categories, search, category, error, onSearchChange, onCategoryChange, onLoad, onManage }) {
+  return (
+    <section className="rounded-md border border-white/10 bg-white/[0.04] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Plugin Marketplace</h2><p className="mt-1 text-sm text-slate-300">Install, update, and load local extensions without restarting MjolnirOS.</p></div><button className="rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" onClick={onLoad} type="button">Browse plugins</button></div>
+      <div className="mt-4 flex flex-wrap gap-2"><input aria-label="Search plugins" className="min-w-48 flex-1 rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search plugins" /><select aria-label="Plugin category" className="rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" value={category} onChange={(event) => onCategoryChange(event.target.value)}><option value="">All categories</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select><button className="rounded bg-white/10 px-3 py-2 text-sm" onClick={onLoad} type="button">Search</button></div>
+      {error && <p className="mt-3 text-sm text-red-200">{error}</p>}
+      {marketplace.length === 0 ? <p className="mt-4 text-sm text-slate-400">Browse the local marketplace to see available plugins.</p> : <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{marketplace.map((plugin) => <article className="rounded border border-white/10 bg-black/20 p-3" key={plugin.manifest.id}><div className="flex items-start justify-between gap-2"><h3 className="font-medium">{plugin.manifest.name}</h3><span className="text-xs text-slate-400">v{plugin.manifest.version}</span></div><p className="mt-1 min-h-10 text-xs leading-5 text-slate-400">{plugin.manifest.description}</p><p className="mt-2 text-xs text-cyan-100">{plugin.manifest.category} · permissions: {plugin.permissions.length ? plugin.permissions.join(", ") : "none"}</p><div className="mt-3 flex gap-3 text-xs">{plugin.installed ? <><button className="text-cyan-200" onClick={() => onManage(plugin, "load")} type="button">Load</button><button className="text-red-200" onClick={() => onManage(plugin, "uninstall")} type="button">Uninstall</button>{plugin.update_available && <button className="text-amber-200" onClick={() => onManage(plugin, "update")} type="button">Update</button>}</> : <button className="rounded bg-cyan-400 px-3 py-2 font-semibold text-slate-950" onClick={() => onManage(plugin, "install")} type="button">Install</button>}</div></article>)}</div>}
+    </section>
   );
 }
 
