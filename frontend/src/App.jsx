@@ -40,6 +40,10 @@ export default function App() {
   const [automationError, setAutomationError] = useState("");
   const [workflowDraft, setWorkflowDraft] = useState(JSON.stringify({ name: "My workflow", description: "A safe local workflow.", steps: [{ id: "announce", title: "Announce start", action: "notify", priority: 3, message: "Workflow started." }] }, null, 2));
   const [editingWorkflowId, setEditingWorkflowId] = useState(null);
+  const [learning, setLearning] = useState(null);
+  const [learningKind, setLearningKind] = useState("application");
+  const [learningValue, setLearningValue] = useState("");
+  const [learningError, setLearningError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -149,6 +153,37 @@ export default function App() {
       await loadWorkflows();
     } catch (error) {
       setAutomationError(error.message);
+    }
+  }
+
+  async function loadLearning() {
+    try {
+      setLearningError("");
+      setLearning(await fetchJson("/learning/overview"));
+    } catch (error) {
+      setLearningError(error.message);
+    }
+  }
+
+  async function recordLearningObservation(event) {
+    event.preventDefault();
+    if (!learningValue.trim()) return;
+    try {
+      await fetchJson("/learning/observations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: learningKind, value: learningValue.trim() }) });
+      setLearningValue("");
+      await loadLearning();
+    } catch (error) {
+      setLearningError(error.message);
+    }
+  }
+
+  async function decideSuggestion(suggestionId, decision) {
+    try {
+      await fetchJson(`/learning/suggestions/${suggestionId}/${decision}`, { method: "POST" });
+      await loadLearning();
+      if (decision === "approve") await loadWorkflows();
+    } catch (error) {
+      setLearningError(error.message);
     }
   }
 
@@ -301,9 +336,26 @@ export default function App() {
             onEdit={editWorkflow}
             onDelete={deleteWorkflow}
           />
+
+          <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
         </section>
       </section>
     </main>
+  );
+}
+
+function LearningPanel({ learning, kind, value, error, onKindChange, onValueChange, onLoad, onRecord, onDecide }) {
+  return (
+    <section className="rounded-md border border-white/10 bg-white/[0.04] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Learning Mode</h2><p className="mt-1 text-sm text-slate-300">Learn repeated habits locally. Suggestions never create automation without your approval.</p></div><button className="rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" onClick={onLoad} type="button">Load learning</button></div>
+      <form className="mt-4 flex flex-wrap gap-2" onSubmit={onRecord}>
+        <select aria-label="Observation kind" className="rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" value={kind} onChange={(event) => onKindChange(event.target.value)}>{["application", "browser", "folder", "coding_style", "repository", "command", "startup"].map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select>
+        <input aria-label="Habit value" className="min-w-48 flex-1 rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" value={value} onChange={(event) => onValueChange(event.target.value)} placeholder="Record a local habit" />
+        <button className="rounded bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950" type="submit">Record</button>
+      </form>
+      {error && <p className="mt-3 text-sm text-red-200">{error}</p>}
+      {!learning ? <p className="mt-4 text-sm text-slate-400">Load learning to see local preferences and recommendations.</p> : <div className="mt-4 grid gap-5 lg:grid-cols-2"><div><h3 className="font-medium">Learned preferences ({learning.observation_count} signals)</h3>{learning.preferences.length === 0 ? <p className="mt-2 text-sm text-slate-400">No preferences inferred yet.</p> : <ul className="mt-2 space-y-2 text-sm">{learning.preferences.map((item) => <li className="rounded bg-black/20 px-3 py-2" key={item.key}>{item.key.replaceAll("_", " ")}: <span className="text-cyan-100">{item.value}</span> ({item.occurrences})</li>)}</ul>}</div><div><h3 className="font-medium">Automation suggestions</h3>{learning.suggestions.length === 0 ? <p className="mt-2 text-sm text-slate-400">No repeated routine found yet.</p> : <div className="mt-2 space-y-2">{learning.suggestions.map((suggestion) => <article className="rounded bg-black/20 p-3 text-sm" key={suggestion.id}><p className="font-medium">{suggestion.title}</p><p className="mt-1 text-slate-300">{suggestion.description}</p><p className="mt-1 text-xs text-slate-400">{suggestion.occurrences} repeated observations · {suggestion.status}</p>{suggestion.status === "pending" && <div className="mt-2 flex gap-3"><button className="text-cyan-200" onClick={() => onDecide(suggestion.id, "approve")} type="button">Approve</button><button className="text-red-200" onClick={() => onDecide(suggestion.id, "dismiss")} type="button">Dismiss</button></div>}</article>)}</div>}</div></div>}
+    </section>
   );
 }
 

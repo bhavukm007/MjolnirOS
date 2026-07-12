@@ -2,6 +2,14 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.12.0] - 2026-07-12
+
+### Added
+
+- Added the local Learning Mode observation store, preference inference, and repeat-pattern detection.
+- Added approval-gated workflow suggestions that integrate with the Automation Engine only after user confirmation.
+- Added Learning Mode APIs, dashboard controls, and persistence tests.
+
 ## [0.11.0] - 2026-07-12
 
 ### Added

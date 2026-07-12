@@ -146,6 +146,24 @@ POST /automation/plans
 
 Input: `{ "goal": "prepare my coding setup" }`
 
+## Learning Mode
+
+POST /learning/observations
+
+Input: `{ "kind": "application", "value": "VS Code" }`. Learning observations remain local and are used only to infer preferences and suggestions.
+
+GET /learning/overview
+
+GET /learning/preferences
+
+GET /learning/suggestions
+
+POST /learning/suggestions/{id}/approve
+
+Creates a safe custom workflow only after explicit approval.
+
+POST /learning/suggestions/{id}/dismiss
+
 ---
 
 ## Plugins

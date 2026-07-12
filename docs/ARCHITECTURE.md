@@ -372,6 +372,10 @@ The Vision & Document Agent is implemented in `backend/app/vision`. `DocumentSer
 
 The Automation Engine is implemented in `backend/app/automation`. `AutomationService` persists workflow definitions and runs safe, dependency-aware steps while publishing durable execution status. `PlannerService` converts natural-language goals into transparent task plans and selects a matching routine when possible. The API starts execution asynchronously so the frontend can display progress or request cancellation; future agent action adapters can extend the engine without changing workflow storage or planner contracts.
 
+## Phase 12 implementation
+
+Learning Mode is implemented in `backend/app/learning`. `LearningService` stores typed, non-sensitive local observations, derives durable preference inferences, and detects recurring routines. Suggestions are persisted in a pending state and may create an Automation workflow only through the explicit approval endpoint. This keeps learning observational and privacy-first while allowing later agents to record activity through the same stable API.
+
 ---
 
 # Plugin Manager

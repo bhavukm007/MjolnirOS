@@ -47,6 +47,8 @@ class AppSettings(BaseSettings):
     tesseract_command: str | None = None
     ollama_url: str = "http://127.0.0.1:11434"
     automation_storage_directory: Path = Field(default=Path("database/automation"))
+    learning_storage_directory: Path = Field(default=Path("database/learning"))
+    learning_suggestion_threshold: int = Field(default=3, ge=2, le=100)
 
     def to_public_settings(self) -> PublicSettings:
         """Return frontend-safe settings."""

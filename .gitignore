@@ -38,6 +38,7 @@ htmlcov/
 *.db
 database/documents/
 database/automation/
+database/learning/
 
 # Temporary
 *.tmp
