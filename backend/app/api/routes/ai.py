@@ -19,6 +19,8 @@ from backend.app.browser.natural_language import parse_browser_command
 from backend.app.windows.natural_language import execute_natural_command
 from backend.app.api.routes.github import get_github_controller
 from backend.app.github.natural_language import parse_github_command
+from backend.app.coding.natural_language import parse_coding_command
+from backend.app.coding.controller import CodingController
 
 router = APIRouter(tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -97,6 +99,13 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
             yield _event("token", content=github_result.message)
             yield _event("done")
         return StreamingResponse(github_events(), media_type="application/x-ndjson")
+    coding_request = parse_coding_command(request.message)
+    if coding_request is not None:
+        coding_result = CodingController().execute(coding_request)
+        async def coding_events() -> AsyncIterator[str]:
+            yield _event("token", content=coding_result.message)
+            yield _event("done")
+        return StreamingResponse(coding_events(), media_type="application/x-ndjson")
     action_result = execute_natural_command(request.message, get_windows_controller())
     if action_result is not None:
         async def action_events() -> AsyncIterator[str]:

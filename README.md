@@ -20,6 +20,8 @@ The Browser Agent uses local Playwright automation with persistent, per-browser 
 
 The GitHub Agent performs local Git operations through the existing Git credential manager and calls the official GitHub REST API only for repository, issue, and pull-request requests. Personal access tokens are read only from the current process environment and are never persisted or returned.
 
+The Coding Agent provides local terminal execution with confirmation, code explanation, debugging guidance, dependency approval, and project generation through `POST /api/v1/coding/actions`.
+
 ## Requirements
 
 - Python 3.12+

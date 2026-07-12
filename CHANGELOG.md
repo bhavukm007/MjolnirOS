@@ -2,6 +2,12 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.9.0] - 2026-07-12
+
+### Added
+
+- Added local Coding Agent terminal, explanation, debugging, dependency, and project-generation actions.
+
 ## [0.8.0] - 2026-07-12
 
 ### Added
