@@ -104,6 +104,10 @@ def test_excel_upload_preserves_sheet_rows(tmp_path, monkeypatch) -> None:
 def test_vision_analysis_reports_text_buttons_and_errors(tmp_path, monkeypatch) -> None:
     settings = AppSettings(vision_upload_directory=tmp_path / "documents")
     monkeypatch.setattr(
+        "backend.app.vision.vision_service.VisionService.detect_tesseract_command",
+        staticmethod(lambda settings: "tesseract"),
+    )
+    monkeypatch.setattr(
         "backend.app.vision.vision_service.pytesseract.image_to_data",
         lambda image, output_type: {
             "text": ["Error", "Save", "failed"],

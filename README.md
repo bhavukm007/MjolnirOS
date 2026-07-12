@@ -22,7 +22,7 @@ The Automation Engine stores workflows locally in `database/automation/`. Built-
 
 ## Vision & Document setup
 
-OCR requires [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) to be installed and available on `PATH`. If it is installed elsewhere, set `MJOLNIROS_TESSERACT_COMMAND` to its executable path. Uploads are stored locally in `database/documents/`, are limited to 20 MB by default, and can be configured through `config/app.json` or environment variables.
+OCR requires [Tesseract OCR](https://github.com/tesseract-ocr/tesseract). On Windows, install it with `winget install --id UB-Mannheim.TesseractOCR -e`, then restart the terminal so the installer can add it to `PATH`. MjolnirOS checks an explicitly configured `MJOLNIROS_TESSERACT_COMMAND` first, then `PATH`, then standard Windows installation roots. If the executable is installed elsewhere, set `MJOLNIROS_TESSERACT_COMMAND` to its full path. Uploads are stored locally in `database/documents/`, are limited to 20 MB by default, and can be configured through `config/app.json` or environment variables.
 
 Future capabilities such as Ollama chat, voice, memory, Windows automation, browser automation, plugins, and tray behavior are intentionally reserved for later documented phases.
 

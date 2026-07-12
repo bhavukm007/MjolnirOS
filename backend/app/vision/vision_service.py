@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from io import BytesIO
+import os
+from pathlib import Path
 import re
+import shutil
 
 from fastapi import HTTPException
 from PIL import Image, ImageGrab, UnidentifiedImageError
@@ -32,8 +35,44 @@ class VisionService:
 
     def __init__(self, settings: AppSettings) -> None:
         self._settings = settings
+        self._tesseract_command = self.detect_tesseract_command(settings)
+        if self._tesseract_command:
+            pytesseract.pytesseract.tesseract_cmd = self._tesseract_command
+
+    @staticmethod
+    def detect_tesseract_command(settings: AppSettings) -> str | None:
+        """Find Tesseract from explicit configuration, PATH, then Windows defaults."""
         if settings.tesseract_command:
-            pytesseract.pytesseract.tesseract_cmd = settings.tesseract_command
+            configured = VisionService._existing_command(settings.tesseract_command)
+            if configured:
+                return configured
+
+        path_command = shutil.which("tesseract")
+        if path_command:
+            return path_command
+
+        if os.name == "nt":
+            for root_name in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+                root = os.environ.get(root_name)
+                if not root:
+                    continue
+                candidate = Path(root) / "Tesseract-OCR" / "tesseract.exe"
+                if candidate.is_file():
+                    return str(candidate)
+                local_candidate = (
+                    Path(root) / "Programs" / "Tesseract-OCR" / "tesseract.exe"
+                )
+                if local_candidate.is_file():
+                    return str(local_candidate)
+        return None
+
+    @staticmethod
+    def _existing_command(command: str) -> str | None:
+        """Validate a configured command while allowing a command name on PATH."""
+        command_path = Path(command).expanduser()
+        if command_path.is_file():
+            return str(command_path)
+        return shutil.which(command)
 
     def analyze_upload(self, content: bytes) -> VisionAnalysis:
         """Decode an uploaded image and return OCR and inferred interface elements."""
@@ -57,12 +96,23 @@ class VisionService:
 
     def analyze_image(self, image: Image.Image) -> VisionAnalysis:
         """Extract text, probable buttons, and visible error messages from an image."""
+        if not self._tesseract_command:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Tesseract OCR is not installed. Install Tesseract and add it to PATH, "
+                    "or set MJOLNIROS_TESSERACT_COMMAND to the executable path."
+                ),
+            )
         try:
             data = pytesseract.image_to_data(image, output_type=Output.DICT)
         except TesseractNotFoundError as error:
             raise HTTPException(
                 status_code=503,
-                detail="OCR is unavailable. Install Tesseract or configure MJOLNIROS_TESSERACT_COMMAND.",
+                detail=(
+                    "Tesseract OCR could not be started. Check your installation or set "
+                    "MJOLNIROS_TESSERACT_COMMAND to a valid executable path."
+                ),
             ) from error
 
         recognized = self._recognized_text(data)
