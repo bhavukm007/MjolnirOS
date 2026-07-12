@@ -46,6 +46,7 @@ class AppSettings(BaseSettings):
     vision_max_extract_characters: int = 100_000
     tesseract_command: str | None = None
     ollama_url: str = "http://127.0.0.1:11434"
+    automation_storage_directory: Path = Field(default=Path("database/automation"))
 
     def to_public_settings(self) -> PublicSettings:
         """Return frontend-safe settings."""

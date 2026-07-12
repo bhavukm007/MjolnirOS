@@ -37,6 +37,7 @@ htmlcov/
 # Database
 *.db
 database/documents/
+database/automation/
 
 # Temporary
 *.tmp

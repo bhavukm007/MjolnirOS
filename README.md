@@ -14,6 +14,11 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Extractive document summaries, table extraction, and offline document questions.
 - Screenshot OCR, probable button recognition, and visible error detection using Tesseract.
 - Optional document translation through a locally running Ollama model; no document data is sent to a cloud service.
+- Automation Engine & Planner with built-in routines, saved custom workflows, visible dependency-aware progress, cancellation, and local goal decomposition.
+
+## Automation & Planner
+
+The Automation Engine stores workflows locally in `database/automation/`. Built-in workflows are safe orchestration templates for morning, coding, study, placement preparation, interview, presentation, gaming, and shutdown routines. Custom workflows support `notify` and `wait` steps today; later agent integrations can add action adapters without changing stored workflow definitions. The planner maps common goals to an appropriate routine or returns a transparent generic plan.
 
 ## Vision & Document setup
 

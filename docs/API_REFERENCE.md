@@ -122,6 +122,30 @@ POST /documents/{id}/translate
 
 Input: `{ "target_language": "Hindi" }`. Translation is performed only through the configured local Ollama instance.
 
+## Automation & Planner
+
+GET /automation/workflows
+
+POST /automation/workflows
+
+PUT /automation/workflows/{id}
+
+DELETE /automation/workflows/{id}
+
+POST /automation/workflows/{id}/executions
+
+Starts a workflow asynchronously. Progress can be queried or cancelled.
+
+GET /automation/executions
+
+GET /automation/executions/{id}
+
+POST /automation/executions/{id}/cancel
+
+POST /automation/plans
+
+Input: `{ "goal": "prepare my coding setup" }`
+
 ---
 
 ## Plugins

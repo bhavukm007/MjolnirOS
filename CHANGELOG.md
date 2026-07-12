@@ -2,6 +2,14 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.11.0] - 2026-07-12
+
+### Added
+
+- Added the Automation Engine with persisted built-in and custom workflows.
+- Added dependency-aware execution, progress reporting, cancellation, and safe local `notify` and `wait` actions.
+- Added deterministic goal decomposition through the Planner API and dashboard controls for recording, editing, running, and deleting custom workflows.
+
 ## [0.10.0] - 2026-07-12
 
 ### Added

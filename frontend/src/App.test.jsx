@@ -15,7 +15,9 @@ describe("App", () => {
             default_model: "qwen2.5:3b",
             modules: ["backend", "frontend"]
           }
-        : {
+        : url.endsWith("/automation/workflows")
+          ? []
+          : {
             app_name: "MjolnirOS",
             environment: "test",
             api_prefix: "/api/v1",
@@ -37,5 +39,6 @@ describe("App", () => {
     expect(screen.getByText("frontend")).toBeInTheDocument();
     expect(screen.getByText("Document Agent")).toBeInTheDocument();
     expect(screen.getByText("Vision Agent")).toBeInTheDocument();
+    expect(screen.getByText("Automation & Planner")).toBeInTheDocument();
   });
 });

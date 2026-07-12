@@ -15,10 +15,13 @@
     "configuration",
     "logging",
     "vision",
-    "documents"
+    "documents",
+    "automation",
+    "planner"
   ],
   "vision_upload_directory": "database/documents",
   "vision_max_upload_bytes": 20000000,
   "vision_max_extract_characters": 100000,
-  "ollama_url": "http://127.0.0.1:11434"
+  "ollama_url": "http://127.0.0.1:11434",
+  "automation_storage_directory": "database/automation"
 }

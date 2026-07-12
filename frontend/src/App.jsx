@@ -13,6 +13,7 @@ const initialHealth = {
 
 async function fetchJson(path, options) {
   const response = await fetch(`${API_BASE_URL}${path}`, options);
+  if (response.status === 204) return null;
   if (!response.ok) {
     throw new Error(`Request failed with status ${response.status}`);
   }
@@ -33,6 +34,12 @@ export default function App() {
   const [question, setQuestion] = useState("");
   const [agentState, setAgentState] = useState("idle");
   const [agentError, setAgentError] = useState("");
+  const [workflows, setWorkflows] = useState([]);
+  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+  const [automationStatus, setAutomationStatus] = useState("idle");
+  const [automationError, setAutomationError] = useState("");
+  const [workflowDraft, setWorkflowDraft] = useState(JSON.stringify({ name: "My workflow", description: "A safe local workflow.", steps: [{ id: "announce", title: "Announce start", action: "notify", priority: 3, message: "Workflow started." }] }, null, 2));
+  const [editingWorkflowId, setEditingWorkflowId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -62,6 +69,88 @@ export default function App() {
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    if (automationStatus !== "running" || !selectedWorkflow?.execution) return undefined;
+    let active = true;
+    const executionId = selectedWorkflow.execution.id;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const execution = await fetchJson(`/automation/executions/${executionId}`);
+        if (!active) return;
+        setSelectedWorkflow((current) => ({ ...current, execution }));
+        if (execution.status !== "running") setAutomationStatus(execution.status);
+      } catch (error) {
+        if (active) setAutomationError(error.message);
+      }
+    }, 500);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [automationStatus, selectedWorkflow?.execution?.id]);
+
+  async function loadWorkflows() {
+    try {
+      const data = await fetchJson("/automation/workflows");
+      setWorkflows(data);
+    } catch (error) {
+      setAutomationError(error.message);
+    }
+  }
+
+  async function runWorkflow(workflow) {
+    setAutomationStatus("starting");
+    setAutomationError("");
+    try {
+      const execution = await fetchJson(`/automation/workflows/${workflow.id}/executions`, { method: "POST" });
+      setSelectedWorkflow({ ...workflow, execution });
+      setAutomationStatus("running");
+    } catch (error) {
+      setAutomationError(error.message);
+      setAutomationStatus("error");
+    }
+  }
+
+  async function cancelWorkflow() {
+    if (!selectedWorkflow?.execution) return;
+    try {
+      const execution = await fetchJson(`/automation/executions/${selectedWorkflow.execution.id}/cancel`, { method: "POST" });
+      setSelectedWorkflow((current) => ({ ...current, execution }));
+      setAutomationStatus("cancelled");
+    } catch (error) {
+      setAutomationError(error.message);
+      setAutomationStatus("error");
+    }
+  }
+
+  async function saveWorkflow() {
+    setAutomationError("");
+    try {
+      const payload = JSON.parse(workflowDraft);
+      const path = editingWorkflowId ? `/automation/workflows/${editingWorkflowId}` : "/automation/workflows";
+      const data = await fetchJson(path, { method: editingWorkflowId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      setEditingWorkflowId(data.id);
+      await loadWorkflows();
+    } catch (error) {
+      setAutomationError(error.message || "Enter valid workflow JSON.");
+    }
+  }
+
+  function editWorkflow(workflow) {
+    setEditingWorkflowId(workflow.id);
+    setWorkflowDraft(JSON.stringify({ name: workflow.name, description: workflow.description, steps: workflow.steps }, null, 2));
+  }
+
+  async function deleteWorkflow(workflowId) {
+    try {
+      await fetchJson(`/automation/workflows/${workflowId}`, { method: "DELETE" });
+      if (editingWorkflowId === workflowId) setEditingWorkflowId(null);
+      await loadWorkflows();
+    } catch (error) {
+      setAutomationError(error.message);
+    }
+  }
 
   const moduleCount = useMemo(() => health.modules.length, [health.modules]);
 
@@ -196,9 +285,58 @@ export default function App() {
             <DocumentResult document={document} result={documentResult} question={question} onQuestionChange={setQuestion} onAsk={askQuestion} />
             <VisionResult result={visionResult} />
           </section>
+
+          <AutomationPanel
+            workflows={workflows}
+            selectedWorkflow={selectedWorkflow}
+            status={automationStatus}
+            error={automationError}
+            onLoad={loadWorkflows}
+            onRun={runWorkflow}
+            onCancel={cancelWorkflow}
+            workflowDraft={workflowDraft}
+            editingWorkflowId={editingWorkflowId}
+            onDraftChange={setWorkflowDraft}
+            onSave={saveWorkflow}
+            onEdit={editWorkflow}
+            onDelete={deleteWorkflow}
+          />
         </section>
       </section>
     </main>
+  );
+}
+
+function AutomationPanel({ workflows, selectedWorkflow, status, error, onLoad, onRun, onCancel, workflowDraft, editingWorkflowId, onDraftChange, onSave, onEdit, onDelete }) {
+  return (
+    <section className="rounded-md border border-white/10 bg-white/[0.04] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Automation & Planner</h2>
+          <p className="mt-1 text-sm text-slate-300">Run safe local workflows with visible dependency-aware progress.</p>
+        </div>
+        <button className="rounded border border-white/15 bg-black/20 px-3 py-2 text-sm" onClick={onLoad} type="button">Load workflows</button>
+      </div>
+      {error && <p className="mt-4 text-sm text-red-200">{error}</p>}
+      {workflows.length === 0 ? <p className="mt-4 text-sm text-slate-400">Load a workflow to begin.</p> : <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {workflows.map((workflow) => <article className="rounded border border-white/10 bg-black/20 p-3" key={workflow.id}>
+          <h3 className="font-medium">{workflow.name}</h3>
+          <p className="mt-1 min-h-10 text-xs leading-5 text-slate-400">{workflow.description}</p>
+          <button className="mt-3 rounded bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950" onClick={() => onRun(workflow)} type="button">Run workflow</button>
+          {workflow.source === "custom" && <div className="mt-2 flex gap-2"><button className="text-xs text-cyan-200" onClick={() => onEdit(workflow)} type="button">Edit</button><button className="text-xs text-red-200" onClick={() => onDelete(workflow.id)} type="button">Delete</button></div>}
+        </article>)}
+      </div>}
+      {selectedWorkflow?.execution && <div className="mt-5 flex flex-wrap items-center gap-3 rounded border border-cyan-300/20 bg-cyan-500/10 p-3 text-sm text-cyan-100">
+        <span>{selectedWorkflow.name}: {status} ({selectedWorkflow.execution.progress_percent}%)</span>
+        {status === "running" && <button className="rounded border border-cyan-200/30 px-2 py-1 text-xs" onClick={onCancel} type="button">Cancel</button>}
+      </div>}
+      <div className="mt-6 border-t border-white/10 pt-5">
+        <h3 className="font-medium">{editingWorkflowId ? "Edit custom workflow" : "Record custom workflow"}</h3>
+        <p className="mt-1 text-xs text-slate-400">Use safe `notify` or `wait` steps. Each step needs an id, title, action, and action-specific message or duration_seconds.</p>
+        <textarea className="mt-3 min-h-48 w-full rounded border border-white/15 bg-black/20 p-3 font-mono text-xs" value={workflowDraft} onChange={(event) => onDraftChange(event.target.value)} aria-label="Custom workflow definition" />
+        <button className="mt-3 rounded bg-white/10 px-3 py-2 text-sm" onClick={onSave} type="button">{editingWorkflowId ? "Save changes" : "Save workflow"}</button>
+      </div>
+    </section>
   );
 }
 

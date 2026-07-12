@@ -368,6 +368,10 @@ Camera understanding
 
 The Vision & Document Agent is implemented in `backend/app/vision`. `DocumentService` accepts supported uploads, stores them in the local application data directory, extracts text and tables through format-specific adapters, and supplies offline extractive summaries and question answers. `VisionService` uses locally installed Tesseract OCR for screenshot text, probable button labels, and visible error detection. The API route remains the integration boundary; neither service depends on the desktop UI.
 
+## Phase 11 implementation
+
+The Automation Engine is implemented in `backend/app/automation`. `AutomationService` persists workflow definitions and runs safe, dependency-aware steps while publishing durable execution status. `PlannerService` converts natural-language goals into transparent task plans and selects a matching routine when possible. The API starts execution asynchronously so the frontend can display progress or request cancellation; future agent action adapters can extend the engine without changing workflow storage or planner contracts.
+
 ---
 
 # Plugin Manager
