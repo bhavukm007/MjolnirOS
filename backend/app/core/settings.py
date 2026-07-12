@@ -67,6 +67,7 @@ class AppSettings(BaseSettings):
     coding_vscode_command: str = "code"
     coding_project_roots: list[Path] = Field(default_factory=lambda: [Path.cwd()])
     coding_command_timeout_seconds: float = 120.0
+    coding_ai_max_context_chars: int = 12_000
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
 

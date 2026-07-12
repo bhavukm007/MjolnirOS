@@ -10,7 +10,7 @@ vi.mock("./voice_runtime.js", () => ({
     }
 
     async start() {
-      voiceOptions.onCommand("Mjolnir, open terminal.");
+      voiceOptions.onCommand("Mjolnir, generate a Flask application.");
     }
 
     async stop() {}
@@ -20,11 +20,11 @@ vi.mock("./voice_runtime.js", () => ({
 import { ChatWorkspace } from "./App.jsx";
 
 
-test("voice commands are forwarded to the Coding Agent chat route", async () => {
+test("voice commands are forwarded to the AI Coding Agent chat route", async () => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode('{"type":"token","content":"VS Code integrated terminal opened."}\n{"type":"done"}\n'));
+      controller.enqueue(encoder.encode('{"type":"token","content":"Generated Flask application."}\n{"type":"done"}\n'));
       controller.close();
     }
   });
@@ -43,7 +43,7 @@ test("voice commands are forwarded to the Coding Agent chat route", async () => 
   fireEvent.click(await screen.findByLabelText("Start voice listening"));
   await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
     "http://127.0.0.1:8000/api/v1/chat",
-    expect.objectContaining({ body: expect.stringContaining("Mjolnir, open terminal.") })
+    expect.objectContaining({ body: expect.stringContaining("Mjolnir, generate a Flask application.") })
   ));
-  expect(await screen.findByText("VS Code integrated terminal opened.")).toBeInTheDocument();
+  expect(await screen.findByText("Generated Flask application.")).toBeInTheDocument();
 });

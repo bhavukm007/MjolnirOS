@@ -22,6 +22,8 @@ The GitHub Agent performs local Git operations through the existing Git credenti
 
 The Coding Agent integrates with the locally installed VS Code command line to open workspaces, projects, folders, files, and the integrated terminal. `POST /api/v1/coding/actions` executes terminal commands locally and returns captured stdout, stderr, and exit code. It discovers projects from configured roots and remembers the active workspace in local memory. Commands containing destructive operations require `confirmed: true`.
 
+The AI Coding Agent uses only local Ollama through `POST /api/v1/coding/ai/actions`. It generates code, explains code and SQL, debugs errors, analyses compiler output, explains errors, and suggests fixes for Python, C++, Java, JavaScript, and SQL. Requests and responses are retained in local Memory System conversation history.
+
 ## Requirements
 
 - Python 3.12+

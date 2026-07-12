@@ -30,6 +30,7 @@
   "coding_vscode_command": "code",
   "coding_project_roots": ["."],
   "coding_command_timeout_seconds": 120,
+  "coding_ai_max_context_chars": 12000,
   "enabled_foundation_modules": [
     "backend",
     "frontend",

@@ -6,6 +6,13 @@ All notable changes to MjolnirOS will be documented in this file.
 
 ### Added
 
+- Added a local Ollama-powered AI Coding Agent for code generation, explanation, debugging, error and compiler analysis, and fix suggestions.
+- Added structured Coding Agent responses, local-memory conversation persistence, and typed or voice natural-language routing for supported coding requests.
+
+## [0.9.0] - 2026-07-12
+
+### Added
+
 - Added the Coding Agent with VS Code workspace, project, folder, file, reveal, and integrated-terminal actions.
 - Added local terminal execution with captured stdout, stderr, exit codes, structured responses, and destructive-command confirmation gates.
 - Added multi-project discovery, active workspace switching, Memory System persistence, and typed/voice natural-language routing for common coding commands.

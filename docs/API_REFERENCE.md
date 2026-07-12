@@ -118,6 +118,10 @@ POST /coding/actions
 
 Coding actions open VS Code workspaces, folders, and files; reveal files; open the integrated terminal; execute commands with captured stdout, stderr, and exit code; and manage remembered workspaces. Commands containing destructive operations require `confirmed: true`.
 
+POST /coding/ai/actions
+
+Local Ollama Coding Agent actions generate code, explain code and SQL, debug errors, explain errors, analyse compiler output, and suggest fixes for Python, C++, Java, JavaScript, and SQL. Responses are structured and coding conversations stay in local memory.
+
 ---
 
 ## Plugins
