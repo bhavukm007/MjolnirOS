@@ -2,6 +2,15 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.3.0] - 2026-07-12
+
+### Added
+
+- Added a local Ollama client with availability monitoring and installed-model discovery.
+- Added streamed NDJSON chat responses through `POST /api/v1/chat`.
+- Added a local chat workspace with model selection and graceful offline handling.
+- Added centralized Ollama connection configuration and AI runtime tests.
+
 ## [0.2.0] - 2026-07-11
 
 ### Added

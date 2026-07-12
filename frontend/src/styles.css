@@ -44,4 +44,24 @@ input:focus-visible {
   .module-row {
     @apply flex min-w-0 items-center gap-3 rounded-md border border-slate-700/70 bg-slate-950/35 px-3 py-3;
   }
+
+  .icon-button {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-teal-300/30 bg-teal-300/10 text-teal-100 transition hover:bg-teal-300/20 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .chat-message {
+    @apply max-w-3xl rounded-md border px-4 py-3 text-sm;
+  }
+
+  .chat-message-user {
+    @apply ml-auto border-teal-300/25 bg-teal-300/10;
+  }
+
+  .chat-message-assistant {
+    @apply border-slate-700 bg-slate-950/45;
+  }
+
+  .chat-message-role {
+    @apply mb-1.5 block text-xs font-medium text-teal-200;
+  }
 }

@@ -8,10 +8,13 @@
   "log_file": "logs/mjolniros.log",
   "frontend_url": "http://localhost:5173",
   "default_model": "qwen2.5:3b",
+  "ollama_base_url": "http://127.0.0.1:11434/api",
+  "ollama_timeout_seconds": 120.0,
   "enabled_foundation_modules": [
     "backend",
     "frontend",
     "desktop",
+    "ai",
     "configuration",
     "logging"
   ]

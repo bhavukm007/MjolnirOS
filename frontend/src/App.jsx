@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  Bot,
+  ChevronDown,
   Cpu,
   HardDrive,
   MonitorCog,
+  Send,
   Settings,
   ShieldCheck,
   Sparkles
@@ -29,6 +32,13 @@ const initialSystemStatus = {
   uptimeSeconds: 0
 };
 
+const initialAiHealth = {
+  available: false,
+  default_model: "qwen2.5:3b",
+  default_model_available: false,
+  message: "Checking the local Ollama runtime."
+};
+
 async function fetchJson(path) {
   const response = await fetch(`${API_BASE_URL}${path}`);
   if (!response.ok) {
@@ -39,6 +49,41 @@ async function fetchJson(path) {
     throw new Error(body.message);
   }
   return body.data;
+}
+
+async function streamChat(payload, onEvent) {
+  const response = await fetch(`${API_BASE_URL}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok || !response.body) {
+    throw new Error("The local AI runtime could not start a response.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (line) {
+        onEvent(JSON.parse(line));
+      }
+    }
+    if (done) {
+      break;
+    }
+  }
+
+  if (buffer) {
+    onEvent(JSON.parse(buffer));
+  }
 }
 
 function getDesktopApi() {
@@ -67,6 +112,8 @@ export function Dashboard() {
   const [health, setHealth] = useState(initialHealth);
   const [settings, setSettings] = useState(null);
   const [systemStatus, setSystemStatus] = useState(initialSystemStatus);
+  const [aiHealth, setAiHealth] = useState(initialAiHealth);
+  const [models, setModels] = useState([]);
   const [connectionState, setConnectionState] = useState("connecting");
 
   useEffect(() => {
@@ -75,15 +122,19 @@ export function Dashboard() {
     async function loadDashboard() {
       try {
         const desktopApi = getDesktopApi();
-        const [healthData, settingsData, systemData] = await Promise.all([
+        const [healthData, settingsData, systemData, aiHealthData, modelsData] = await Promise.all([
           fetchJson("/health"),
           fetchJson("/settings"),
-          desktopApi ? desktopApi.getSystemStatus() : Promise.resolve(initialSystemStatus)
+          desktopApi ? desktopApi.getSystemStatus() : Promise.resolve(initialSystemStatus),
+          fetchJson("/ai/health"),
+          fetchJson("/ai/models")
         ]);
         if (active) {
           setHealth(healthData);
           setSettings(settingsData);
           setSystemStatus(systemData);
+          setAiHealth(aiHealthData);
+          setModels(modelsData.models);
           setConnectionState("online");
         }
       } catch (error) {
@@ -135,6 +186,8 @@ export function Dashboard() {
           <MetricCard icon={Activity} label="Running Agents" value={String(systemStatus.runningAgents)} detail="No active agent workflows" />
         </section>
 
+        <ChatWorkspace aiHealth={aiHealth} defaultModel={health.default_model} models={models} />
+
         <section className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
           <div className="glass-panel p-5">
             <div className="flex items-center justify-between gap-4">
@@ -175,6 +228,115 @@ export function Dashboard() {
         </section>
       </section>
     </main>
+  );
+}
+
+export function ChatWorkspace({ aiHealth, defaultModel, models }) {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [selectedModel, setSelectedModel] = useState(defaultModel);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  useEffect(() => {
+    const availableNames = models.map((model) => model.name);
+    if (availableNames.includes(selectedModel)) {
+      return;
+    }
+    setSelectedModel(availableNames[0] ?? defaultModel);
+  }, [defaultModel, models, selectedModel]);
+
+  async function submitMessage(event) {
+    event.preventDefault();
+    const content = draft.trim();
+    if (!content || isStreaming || !aiHealth.available) {
+      return;
+    }
+
+    const history = messages.map(({ role, content: entryContent }) => ({ role, content: entryContent }));
+    setMessages((current) => [...current, { role: "user", content }, { role: "assistant", content: "" }]);
+    setDraft("");
+    setIsStreaming(true);
+
+    try {
+      await streamChat({ message: content, model: selectedModel, history }, (eventData) => {
+        if (eventData.type === "token") {
+          setMessages((current) => current.map((message, index) => (
+            index === current.length - 1
+              ? { ...message, content: `${message.content}${eventData.content}` }
+              : message
+          )));
+        }
+        if (eventData.type === "error") {
+          throw new Error(eventData.message);
+        }
+      });
+    } catch (error) {
+      setMessages((current) => current.map((message, index) => (
+        index === current.length - 1
+          ? { ...message, content: error.message }
+          : message
+      )));
+    } finally {
+      setIsStreaming(false);
+    }
+  }
+
+  const availableModels = models.length ? models : [{ name: defaultModel }];
+
+  return (
+    <section className="glass-panel flex min-h-[440px] flex-col overflow-hidden" aria-labelledby="chat-heading">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/70 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <Bot aria-hidden="true" className="text-teal-200" size={19} />
+          <div>
+            <h2 id="chat-heading" className="text-base font-semibold">Local AI</h2>
+            <p className="mt-0.5 text-xs text-slate-400">{aiHealth.message}</p>
+          </div>
+        </div>
+        <div className="relative">
+          <select
+            aria-label="Local model"
+            className="h-9 appearance-none rounded-md border border-slate-700 bg-slate-950 py-0 pl-3 pr-8 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!aiHealth.available || isStreaming}
+            onChange={(event) => setSelectedModel(event.target.value)}
+            value={selectedModel}
+          >
+            {availableModels.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}
+          </select>
+          <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-2.5 top-2.5 text-slate-400" size={15} />
+        </div>
+      </header>
+
+      <div className="flex-1 space-y-3 overflow-y-auto px-5 py-5" aria-live="polite">
+        {messages.length === 0 ? (
+          <div className="flex h-full min-h-48 items-center justify-center text-center text-sm text-slate-500">
+            {aiHealth.available ? "Start a local conversation." : "Start Ollama to begin a local conversation."}
+          </div>
+        ) : messages.map((message, index) => (
+          <article key={`${message.role}-${index}`} className={`chat-message ${message.role === "user" ? "chat-message-user" : "chat-message-assistant"}`}>
+            <span className="chat-message-role">{message.role === "user" ? "You" : selectedModel}</span>
+            <p className="whitespace-pre-wrap break-words leading-6">{message.content || "Generating..."}</p>
+          </article>
+        ))}
+      </div>
+
+      <form className="border-t border-slate-700/70 p-4" onSubmit={submitMessage}>
+        <div className="flex items-end gap-3">
+          <textarea
+            aria-label="Message Ollama"
+            className="min-h-11 flex-1 resize-none rounded-md border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-300"
+            disabled={!aiHealth.available || isStreaming}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={aiHealth.available ? "Message the local model" : "Ollama is offline"}
+            rows="1"
+            value={draft}
+          />
+          <button aria-label="Send message" className="icon-button" disabled={!draft.trim() || !aiHealth.available || isStreaming} type="submit">
+            <Send aria-hidden="true" size={17} />
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 

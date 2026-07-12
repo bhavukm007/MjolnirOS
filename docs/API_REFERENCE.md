@@ -46,6 +46,18 @@ Output:
 
 - conversation_id
 
+Phase 03 streams newline-delimited JSON events. Token events contain `type: "token"` and `content`; terminal events contain `type: "done"` or `type: "error"`.
+
+## Local AI
+
+GET /ai/health
+
+Returns local Ollama availability and whether the configured default model is installed.
+
+GET /ai/models
+
+Returns models installed in the local Ollama runtime.
+
 ---
 
 ## Memory

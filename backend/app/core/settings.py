@@ -17,6 +17,7 @@ class PublicSettings(BaseSettings):
     environment: str
     api_prefix: str
     default_model: str
+    ollama_base_url: str
     enabled_foundation_modules: list[str]
 
 
@@ -39,6 +40,8 @@ class AppSettings(BaseSettings):
     log_file: str = "logs/mjolniros.log"
     frontend_url: str = "http://localhost:5173"
     default_model: str = "qwen2.5:3b"
+    ollama_base_url: str = "http://127.0.0.1:11434/api"
+    ollama_timeout_seconds: float = 120.0
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
 
@@ -49,6 +52,7 @@ class AppSettings(BaseSettings):
             environment=self.environment,
             api_prefix=self.api_prefix,
             default_model=self.default_model,
+            ollama_base_url=self.ollama_base_url,
             enabled_foundation_modules=self.enabled_foundation_modules,
         )
 
