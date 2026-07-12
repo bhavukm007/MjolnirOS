@@ -14,6 +14,8 @@ from backend.app.domain.ai import AiHealthStatus, AiModelsStatus, ChatRequest
 from backend.app.domain.memory import MemoryCreate
 from backend.app.api.routes.memory import get_memory_store
 from backend.app.api.routes.windows import get_windows_controller
+from backend.app.api.routes.browser import get_browser_controller
+from backend.app.browser.natural_language import parse_browser_command
 from backend.app.windows.natural_language import execute_natural_command
 
 router = APIRouter(tags=["ai"])
@@ -79,6 +81,13 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     """Stream assistant content as NDJSON for the desktop chat interface."""
     settings = get_settings()
     model = request.model or settings.default_model
+    browser_request = parse_browser_command(request.message)
+    if browser_request is not None:
+        browser_result = await get_browser_controller().execute(browser_request)
+        async def browser_events() -> AsyncIterator[str]:
+            yield _event("token", content=browser_result.message)
+            yield _event("done")
+        return StreamingResponse(browser_events(), media_type="application/x-ndjson")
     action_result = execute_natural_command(request.message, get_windows_controller())
     if action_result is not None:
         async def action_events() -> AsyncIterator[str]:

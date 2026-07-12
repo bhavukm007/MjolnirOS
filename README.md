@@ -14,8 +14,9 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Structured JSON logging to console and `logs/mjolniros.log`.
 - Docker Compose support for backend and frontend.
 
-MjolnirOS now persists conversations and typed local memories using SQLite, with ChromaDB semantic retrieval. Windows automation, browser automation, and plugins are reserved for later documented phases.
-MjolnirOS also provides a local Windows Control Agent for applications, files, system information, clipboard, screenshots, and Task Manager. Destructive file and Recycle Bin actions require explicit confirmation.
+MjolnirOS now persists conversations and typed local memories using SQLite, with ChromaDB semantic retrieval. It also provides a local Windows Control Agent for applications, files, system information, clipboard, screenshots, and Task Manager. Destructive file and Recycle Bin actions require explicit confirmation.
+
+The Browser Agent uses local Playwright automation with persistent, per-browser local profiles for Chrome, Edge, and Firefox. It can open pages, search Google, read and summarize pages through local Ollama (with an offline extractive fallback), manage tabs, select uploads, save local bookmarks, take screenshots, and download files. Login pages always require credentials, MFA, and CAPTCHA interaction directly in the browser. Form submissions and executable downloads require an explicit confirmation.
 
 ## Requirements
 
@@ -29,6 +30,7 @@ MjolnirOS also provides a local Windows Control Agent for applications, files, s
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+playwright install firefox
 npm install
 ```
 
@@ -63,6 +65,10 @@ npm run desktop:dev
 In Settings, **Launch MjolnirOS when Windows starts** remains disabled until you turn it on. When enabled, MjolnirOS registers the current application with Windows login; disabling the setting removes that registration. The preference is stored in Electron's local application data.
 
 The API is served at `http://127.0.0.1:8000/api/v1`.
+
+## Browser Agent
+
+Use `POST /api/v1/browser/actions` for browser operations. Each request returns a structured action result. Browser profile data, downloads, and screenshots remain local in the configured `database/` and `assets/` directories. Do not send passwords to MjolnirOS; use the opened browser window to sign in. Chrome and Edge use their installed browser channels, while Firefox requires the Playwright Firefox runtime shown in setup.
 
 ## Local AI
 

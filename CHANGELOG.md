@@ -2,6 +2,15 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.7.0] - 2026-07-12
+
+### Added
+
+- Added a Playwright Browser Agent with persistent local Chrome, Edge, and Firefox sessions.
+- Added structured browser actions for opening sites, Google searches, page reading, local-AI summaries, downloads, uploads, forms, login handoff, tabs, bookmarks, and webpage screenshots.
+- Added voice and text natural-language routing for supported browser commands, local-memory bookmarks, and confirmation gates for form submissions and executable downloads.
+- Added credential protections that reject password fields and direct users to complete credentials, CAPTCHA, and MFA inside the browser.
+
 ## [0.6.0] - 2026-07-12
 
 ### Added

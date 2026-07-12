@@ -55,6 +55,11 @@ class AppSettings(BaseSettings):
     chroma_path: Path = Path("database/chroma")
     windows_search_root: Path = Path("C:/Users")
     windows_screenshot_path: Path = Path("assets/screenshots")
+    browser_session_path: Path = Path("database/browser_sessions")
+    browser_download_path: Path = Path("assets/downloads")
+    browser_screenshot_path: Path = Path("assets/browser_screenshots")
+    browser_headless: bool = False
+    browser_summary_timeout_seconds: float = 30.0
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
 

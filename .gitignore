@@ -39,6 +39,11 @@ htmlcov/
 # Database
 *.db
 database/chroma/
+database/browser_sessions/
+
+# Browser artifacts
+assets/downloads/
+assets/browser_screenshots/
 
 # Temporary
 *.tmp

@@ -20,6 +20,11 @@
   "chroma_path": "database/chroma",
   "windows_search_root": "C:/Users",
   "windows_screenshot_path": "assets/screenshots",
+  "browser_session_path": "database/browser_sessions",
+  "browser_download_path": "assets/downloads",
+  "browser_screenshot_path": "assets/browser_screenshots",
+  "browser_headless": false,
+  "browser_summary_timeout_seconds": 30,
   "enabled_foundation_modules": [
     "backend",
     "frontend",
@@ -28,6 +33,7 @@
     "voice",
     "memory",
     "windows",
+    "browser",
     "configuration",
     "logging"
   ]

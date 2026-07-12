@@ -269,7 +269,7 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
   useEffect(() => () => { voiceRuntime.current?.stop(); }, []);
 
   async function sendMessage(content, speakReply = false) {
-    if (!content || isStreaming || !aiHealth.available) {
+    if (!content || isStreaming) {
       return;
     }
 
@@ -384,13 +384,13 @@ export function ChatWorkspace({ aiHealth, defaultModel, models }) {
           <textarea
             aria-label="Message Ollama"
             className="min-h-11 flex-1 resize-none rounded-md border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-300"
-            disabled={!aiHealth.available || isStreaming}
+            disabled={isStreaming}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder={aiHealth.available ? "Message the local model" : "Ollama is offline"}
+            placeholder={aiHealth.available ? "Message the local model" : "Browser commands still work locally"}
             rows="1"
             value={draft}
           />
-          <button aria-label="Send message" className="icon-button" disabled={!draft.trim() || !aiHealth.available || isStreaming} type="submit">
+          <button aria-label="Send message" className="icon-button" disabled={!draft.trim() || isStreaming} type="submit">
             <Send aria-hidden="true" size={17} />
           </button>
         </div>

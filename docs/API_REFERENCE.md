@@ -92,6 +92,10 @@ POST /browser/download
 
 POST /browser/upload
 
+POST /browser/actions
+
+Browser actions provide structured success or failure data. Credentials are never accepted by the API; login requests open the page and require the user to enter credentials, MFA, and CAPTCHA responses directly in the browser. Form submission and executable downloads require `confirmed: true`.
+
 ---
 
 ## GitHub
