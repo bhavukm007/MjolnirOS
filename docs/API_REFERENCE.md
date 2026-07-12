@@ -122,6 +122,10 @@ POST /coding/ai/actions
 
 Local Ollama Coding Agent actions generate code, explain code and SQL, debug errors, explain errors, analyse compiler output, and suggest fixes for Python, C++, Java, JavaScript, and SQL. Responses are structured and coding conversations stay in local memory.
 
+POST /build/actions
+
+Build actions provide local Docker operations, dependency resolution, project generation, compile/run adapters, and project registration. Global package installs and privileged Docker containers require `confirmed: true`.
+
 ---
 
 ## Plugins

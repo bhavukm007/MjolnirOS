@@ -6,6 +6,13 @@ All notable changes to MjolnirOS will be documented in this file.
 
 ### Added
 
+- Added the Build & Project Agent with modular Docker, dependency-manager, language, and project-template adapters.
+- Added local project registration and Memory System persistence, structured build responses, confirmation gates, and typed/voice routing for common build tasks.
+
+## [0.9.0] - 2026-07-12
+
+### Added
+
 - Added a local Ollama-powered AI Coding Agent for code generation, explanation, debugging, error and compiler analysis, and fix suggestions.
 - Added structured Coding Agent responses, local-memory conversation persistence, and typed or voice natural-language routing for supported coding requests.
 

@@ -24,6 +24,8 @@ The Coding Agent integrates with the locally installed VS Code command line to o
 
 The AI Coding Agent uses only local Ollama through `POST /api/v1/coding/ai/actions`. It generates code, explains code and SQL, debugs errors, analyses compiler output, explains errors, and suggests fixes for Python, C++, Java, JavaScript, and SQL. Requests and responses are retained in local Memory System conversation history.
 
+The Build & Project Agent uses `POST /api/v1/build/actions` for local Docker image/container operations, pip/npm/Maven/Gradle dependency resolution, project templates, language-specific build/run commands, and persistent project registration. Global installs and privileged Docker containers require confirmation.
+
 ## Requirements
 
 - Python 3.12+

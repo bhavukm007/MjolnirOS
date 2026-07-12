@@ -23,6 +23,8 @@ from backend.app.api.routes.coding import get_coding_controller
 from backend.app.coding.natural_language import parse_coding_command
 from backend.app.api.routes.coding_ai import get_ai_coding_controller
 from backend.app.coding.ai_natural_language import parse_ai_coding_command
+from backend.app.api.routes.build import get_build_controller
+from backend.app.coding.build_natural_language import parse_build_command
 
 router = APIRouter(tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -87,6 +89,13 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     """Stream assistant content as NDJSON for the desktop chat interface."""
     settings = get_settings()
     model = request.model or settings.default_model
+    build_request = parse_build_command(request.message)
+    if build_request is not None:
+        build_result = get_build_controller().execute(build_request)
+        async def build_events() -> AsyncIterator[str]:
+            yield _event("token", content=build_result.message)
+            yield _event("done")
+        return StreamingResponse(build_events(), media_type="application/x-ndjson")
     ai_coding_request = parse_ai_coding_command(request.message)
     if ai_coding_request is not None:
         ai_coding_request.model = model
