@@ -49,6 +49,9 @@ export default function PluginManager({ request }) {
   }
 
   const plugins = view === "installed" ? installed : marketplace;
+  const installedById = new Map(
+    installed.map((plugin) => [plugin.manifest.id, plugin])
+  );
 
   return (
     <section className="rounded-md border border-white/10 bg-white/[0.04] p-5">
@@ -71,12 +74,12 @@ export default function PluginManager({ request }) {
       {error && <p className="mt-3 text-sm text-red-200">{error}</p>}
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {plugins.map((plugin) => {
-          const record = view === "installed" ? plugin : { ...plugin, status: plugin.installed ? "disabled" : null };
+          const record = view === "installed" ? plugin : { ...plugin, status: installedById.get(plugin.manifest.id)?.status ?? null };
           const { manifest } = record;
           const isInstalled = view === "installed" || plugin.installed;
           const isEnabled = record.status === "loaded";
           const busy = busyPluginId === manifest.id;
-          return <article className="rounded border border-white/10 bg-black/20 p-4" key={manifest.id}><div className="flex items-start justify-between gap-3"><h3 className="font-medium">{manifest.name}</h3><span className="text-xs text-slate-400">v{manifest.version}</span></div><p className="mt-2 min-h-10 text-xs leading-5 text-slate-400">{manifest.description}</p><p className="mt-2 text-xs text-cyan-100">{manifest.category} · {isInstalled ? (isEnabled ? "enabled" : "disabled") : "available"}</p>{view === "installed" && record.blocked_reason && <p className="mt-2 text-xs text-amber-200">{record.blocked_reason}</p>}<div className="mt-4 flex flex-wrap gap-3 text-xs">{!isInstalled ? <Action label="Install" onClick={() => managePlugin(manifest.id, "install")} busy={busy} /> : <>{isEnabled ? <Action label="Disable" onClick={() => managePlugin(manifest.id, "disable")} busy={busy} /> : <Action label="Load / Enable" onClick={() => managePlugin(manifest.id, "load")} busy={busy} />}{plugin.update_available && view === "marketplace" && <Action label="Update" onClick={() => managePlugin(manifest.id, "update")} busy={busy} />}{view === "installed" && <Action label="Update" onClick={() => managePlugin(manifest.id, "update")} busy={busy} />}{view === "installed" && <Action label="Uninstall" tone="danger" onClick={() => managePlugin(manifest.id, "uninstall")} busy={busy} />}</>}</div></article>;
+          return <article className="rounded border border-white/10 bg-black/20 p-4" key={manifest.id}><div className="flex items-start justify-between gap-3"><h3 className="font-medium">{manifest.name}</h3><span className="text-xs text-slate-400">v{manifest.version}</span></div><p className="mt-2 min-h-10 text-xs leading-5 text-slate-400">{manifest.description}</p><p className="mt-2 text-xs text-cyan-100">{manifest.category} - {isInstalled ? (isEnabled ? "enabled" : "disabled") : "available"}</p>{view === "installed" && record.blocked_reason && <p className="mt-2 text-xs text-amber-200">{record.blocked_reason}</p>}<div className="mt-4 flex flex-wrap gap-3 text-xs">{!isInstalled ? <Action label="Install" onClick={() => managePlugin(manifest.id, "install")} busy={busy} /> : <>{isEnabled ? <Action label="Disable" onClick={() => managePlugin(manifest.id, "disable")} busy={busy} /> : <Action label="Load / Enable" onClick={() => managePlugin(manifest.id, "load")} busy={busy} />}{plugin.update_available && view === "marketplace" && <Action label="Update" onClick={() => managePlugin(manifest.id, "update")} busy={busy} />}{view === "installed" && <Action label="Update" onClick={() => managePlugin(manifest.id, "update")} busy={busy} />}{view === "installed" && <Action label="Uninstall" tone="danger" onClick={() => managePlugin(manifest.id, "uninstall")} busy={busy} />}</>}</div></article>;
         })}
       </div>
       {plugins.length === 0 && <p className="mt-5 text-sm text-slate-400">No plugins match this search.</p>}
@@ -85,5 +88,5 @@ export default function PluginManager({ request }) {
 }
 
 function Action({ label, tone = "default", onClick, busy }) {
-  return <button className={tone === "danger" ? "text-red-200" : "text-cyan-200"} disabled={busy} onClick={onClick} type="button">{busy ? "Working…" : label}</button>;
+  return <button className={tone === "danger" ? "text-red-200" : "text-cyan-200"} disabled={busy} onClick={onClick} type="button">{busy ? "Working..." : label}</button>;
 }

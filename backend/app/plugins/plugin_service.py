@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from threading import RLock
 
 from fastapi import HTTPException
 
@@ -48,6 +49,8 @@ _DEFAULT_PLUGINS = (
 class PluginService:
     """Manage local plugins without exposing plugin code to the backend process."""
 
+    _state_lock = RLock()
+
     def __init__(self, settings: AppSettings) -> None:
         self._settings = settings
         self._directory = settings.plugin_directory
@@ -59,7 +62,14 @@ class PluginService:
     ) -> list[PluginRecord]:
         """Discover installed plugins and apply optional marketplace-style filters."""
         self._ensure_default_plugins()
-        records = [self._record(path) for path in self._plugin_paths()]
+        records = []
+        for path in self._plugin_paths():
+            try:
+                records.append(self._record(path))
+            except ValueError:
+                logger.warning(
+                    "plugin_directory_invalid", extra={"plugin_path": str(path)}
+                )
         query = (search or "").strip().lower()
         if query:
             records = [
@@ -142,9 +152,7 @@ class PluginService:
                 detail=f"Plugin is required by: {', '.join(dependents)}.",
             )
         shutil.rmtree(path)
-        states = self._states()
-        states.pop(plugin_id, None)
-        self._write_states(states)
+        self._remove_state(plugin_id)
         logger.info("plugin_uninstalled", extra={"plugin_id": plugin_id})
 
     def update(self, plugin_id: str) -> PluginRecord:
@@ -182,7 +190,11 @@ class PluginService:
                 check=True,
                 timeout=self._settings.plugin_load_timeout_seconds,
             )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        except (
+            OSError,
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+        ) as error:
             logger.warning("plugin_load_failed", extra={"plugin_id": plugin_id})
             raise HTTPException(
                 status_code=422,
@@ -230,10 +242,9 @@ class PluginService:
             permissions = PluginPermissions.model_validate_json(
                 (path / "permissions.json").read_text(encoding="utf-8")
             ).permissions
-        except (OSError, ValueError) as error:
-            raise HTTPException(
-                status_code=422, detail="Plugin metadata is invalid."
-            ) from error
+        except (OSError, ValueError):
+            logger.warning("plugin_metadata_invalid", extra={"plugin_path": str(path)})
+            return self._blocked_record(path, "Plugin metadata is invalid.")
         if manifest.id != path.name:
             return PluginRecord(
                 manifest=manifest,
@@ -249,7 +260,7 @@ class PluginService:
                 status=PluginStatus.BLOCKED,
                 blocked_reason=f"Unknown permissions: {', '.join(unknown)}.",
             )
-        installed = self._installed_manifests(exclude=manifest.id)
+        installed = self._installed_manifests()
         missing_dependencies = [
             dependency.id
             for dependency in manifest.dependencies
@@ -264,6 +275,13 @@ class PluginService:
                 status=PluginStatus.BLOCKED,
                 blocked_reason=f"Unsatisfied dependencies: {', '.join(missing_dependencies)}.",
             )
+        if self._has_dependency_cycle(installed, manifest.id):
+            return PluginRecord(
+                manifest=manifest,
+                permissions=permissions,
+                status=PluginStatus.BLOCKED,
+                blocked_reason="Plugin dependencies contain a cycle.",
+            )
         return PluginRecord(
             manifest=manifest,
             permissions=permissions,
@@ -276,24 +294,79 @@ class PluginService:
 
     def _states(self) -> dict[str, bool]:
         """Load enabled state without storing executable plugin data in the core."""
-        if not self._state_file.exists():
-            return {}
-        try:
-            loaded = json.loads(self._state_file.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as error:
-            raise HTTPException(
-                status_code=500, detail="Plugin state storage is invalid."
-            ) from error
-        return {key: value for key, value in loaded.items() if isinstance(value, bool)}
+        with self._state_lock:
+            if not self._state_file.exists():
+                return {}
+            try:
+                loaded = json.loads(self._state_file.read_text(encoding="utf-8"))
+                if not isinstance(loaded, dict):
+                    raise ValueError("Plugin state must be a JSON object.")
+            except (OSError, ValueError) as error:
+                raise HTTPException(
+                    status_code=500, detail="Plugin state storage is invalid."
+                ) from error
+            return {
+                key: value for key, value in loaded.items() if isinstance(value, bool)
+            }
 
     def _set_enabled(self, plugin_id: str, enabled: bool) -> None:
-        states = self._states()
-        states[plugin_id] = enabled
-        self._write_states(states)
+        with self._state_lock:
+            states = self._states()
+            states[plugin_id] = enabled
+            self._write_states(states)
+
+    def _remove_state(self, plugin_id: str) -> None:
+        """Remove a plugin's persisted state atomically with its uninstallation."""
+        with self._state_lock:
+            states = self._states()
+            states.pop(plugin_id, None)
+            self._write_states(states)
 
     def _write_states(self, states: dict[str, bool]) -> None:
-        self._state_file.parent.mkdir(parents=True, exist_ok=True)
-        self._state_file.write_text(json.dumps(states, indent=2), encoding="utf-8")
+        with self._state_lock:
+            self._state_file.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self._state_file.with_suffix(".tmp")
+            temporary.write_text(json.dumps(states, indent=2), encoding="utf-8")
+            temporary.replace(self._state_file)
+
+    @staticmethod
+    def _blocked_record(path: Path, reason: str) -> PluginRecord:
+        """Return a visible blocked record for a plugin with invalid metadata."""
+        return PluginRecord(
+            manifest=PluginManifest(
+                id=path.name,
+                name=path.name,
+                version="0.0.0",
+                description="Invalid plugin.",
+                category="Invalid",
+            ),
+            permissions=[],
+            status=PluginStatus.BLOCKED,
+            blocked_reason=reason,
+        )
+
+    @staticmethod
+    def _has_dependency_cycle(
+        manifests: dict[str, PluginManifest], start_id: str
+    ) -> bool:
+        """Detect cycles reachable from a plugin before it can be activated."""
+        visiting: set[str] = set()
+        visited: set[str] = set()
+
+        def visit(plugin_id: str) -> bool:
+            if plugin_id in visiting:
+                return True
+            if plugin_id in visited or plugin_id not in manifests:
+                return False
+            visiting.add(plugin_id)
+            has_cycle = any(
+                visit(dependency.id) for dependency in manifests[plugin_id].dependencies
+            )
+            visiting.remove(plugin_id)
+            visited.add(plugin_id)
+            return has_cycle
+
+        return visit(start_id)
 
     def _installed_manifests(
         self, exclude: str | None = None

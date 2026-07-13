@@ -11,6 +11,7 @@ All notable changes to MjolnirOS will be documented in this file.
 - Added packaged Spotify, Weather, Calculator, Clock, GitHub, and Docker plugins plus API coverage for plugin lifecycle and permission validation.
 - Added the navigable React Plugin Manager with installed and marketplace views, search, category filtering, and lifecycle controls.
 - Added persistent enabled/disabled plugin state and frontend integration coverage for plugin activation.
+- Hardened plugin discovery against malformed metadata, missing files, dependency cycles, and atomic state persistence.
 
 ## [0.12.0] - 2026-07-12
 

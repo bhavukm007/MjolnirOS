@@ -1,8 +1,10 @@
 import json
 
 from fastapi.testclient import TestClient
+import pytest
 
 from backend.app.core.settings import AppSettings
+from backend.app.domain.plugin import PluginCatalog, PluginManifest
 from backend.app.main import create_app
 
 
@@ -100,3 +102,111 @@ def test_plugin_permissions_and_dependencies_are_validated(
     assert restricted["status"] == "blocked"
     assert "Unknown permissions" in restricted["blocked_reason"]
     assert client.post("/api/v1/plugins/restricted/load").status_code == 422
+
+
+def test_plugin_discovery_blocks_invalid_metadata_missing_files_and_cycles(
+    tmp_path, monkeypatch
+) -> None:
+    client = _client(tmp_path, monkeypatch)
+    plugins_directory = tmp_path / "plugins"
+
+    invalid = plugins_directory / "invalid"
+    invalid.mkdir(parents=True)
+    (invalid / "manifest.json").write_text("{}", encoding="utf-8")
+    (invalid / "permissions.json").write_text(
+        json.dumps({"permissions": []}), encoding="utf-8"
+    )
+    (invalid / "plugin.py").write_text("def activate(): pass\n", encoding="utf-8")
+    (invalid / "README.md").write_text("# Invalid\n", encoding="utf-8")
+
+    incomplete = plugins_directory / "incomplete"
+    incomplete.mkdir()
+
+    for plugin_id, dependency_id in (("first", "second"), ("second", "first")):
+        plugin = plugins_directory / plugin_id
+        plugin.mkdir()
+        (plugin / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "id": plugin_id,
+                    "name": plugin_id.title(),
+                    "version": "1.0.0",
+                    "description": "Cycle test plugin.",
+                    "category": "Testing",
+                    "dependencies": [{"id": dependency_id, "min_version": "1.0.0"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (plugin / "permissions.json").write_text(
+            json.dumps({"permissions": []}), encoding="utf-8"
+        )
+        (plugin / "plugin.py").write_text("def activate(): pass\n", encoding="utf-8")
+        (plugin / "README.md").write_text(f"# {plugin_id}\n", encoding="utf-8")
+
+    records = {
+        item["manifest"]["id"]: item
+        for item in client.get("/api/v1/plugins").json()["data"]
+    }
+    assert records["invalid"]["status"] == "blocked"
+    assert records["incomplete"]["status"] == "blocked"
+    assert records["first"]["blocked_reason"] == "Plugin dependencies contain a cycle."
+    assert records["second"]["blocked_reason"] == "Plugin dependencies contain a cycle."
+
+
+def test_plugin_catalog_rejects_duplicate_ids() -> None:
+    manifest = PluginManifest(
+        id="unique",
+        name="Unique",
+        version="1.0.0",
+        description="Unique catalog entry.",
+        category="Testing",
+    )
+
+    with pytest.raises(ValueError, match="duplicate plugin ids"):
+        PluginCatalog(plugins=[manifest, manifest])
+
+
+def test_plugin_rejects_version_conflicts_load_failures_and_dependent_removal(
+    tmp_path, monkeypatch
+) -> None:
+    client = _client(tmp_path, monkeypatch)
+    client.get("/api/v1/plugins")
+    plugins_directory = tmp_path / "plugins"
+
+    definitions = (
+        ("dependent", [{"id": "calculator", "min_version": "1.0.0"}], "pass"),
+        ("conflict", [{"id": "calculator", "min_version": "2.0.0"}], "pass"),
+        ("load_failure", [], "raise RuntimeError('failed')"),
+    )
+    for plugin_id, dependencies, body in definitions:
+        plugin = plugins_directory / plugin_id
+        plugin.mkdir()
+        (plugin / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "id": plugin_id,
+                    "name": plugin_id.title(),
+                    "version": "1.0.0",
+                    "description": "Plugin API hardening test.",
+                    "category": "Testing",
+                    "dependencies": dependencies,
+                }
+            ),
+            encoding="utf-8",
+        )
+        (plugin / "permissions.json").write_text(
+            json.dumps({"permissions": []}), encoding="utf-8"
+        )
+        (plugin / "plugin.py").write_text(
+            f"def activate():\n    {body}\n", encoding="utf-8"
+        )
+        (plugin / "README.md").write_text(f"# {plugin_id}\n", encoding="utf-8")
+
+    records = {
+        item["manifest"]["id"]: item
+        for item in client.get("/api/v1/plugins").json()["data"]
+    }
+    assert "Unsatisfied dependencies" in records["conflict"]["blocked_reason"]
+    assert client.post("/api/v1/plugins/load_failure/load").status_code == 422
+    assert client.delete("/api/v1/plugins/calculator").status_code == 409

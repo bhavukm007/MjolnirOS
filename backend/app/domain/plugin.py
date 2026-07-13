@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class PluginStatus(StrEnum):
@@ -18,14 +18,14 @@ class PluginStatus(StrEnum):
 class PluginDependency(BaseModel):
     """A plugin dependency and its minimum compatible version."""
 
-    id: str = Field(pattern=r"^[a-z][a-z0-9_-]{1,63}$")
+    id: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
     min_version: str = Field(default="0.0.0", pattern=r"^\d+\.\d+\.\d+$")
 
 
 class PluginManifest(BaseModel):
     """Versioned metadata required in every plugin's manifest.json file."""
 
-    id: str = Field(pattern=r"^[a-z][a-z0-9_-]{1,63}$")
+    id: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
     name: str = Field(min_length=1, max_length=100)
     version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
     description: str = Field(min_length=1, max_length=500)
@@ -62,3 +62,11 @@ class PluginCatalog(BaseModel):
     """The local marketplace index shipped with MjolnirOS."""
 
     plugins: list[PluginManifest]
+
+    @model_validator(mode="after")
+    def validate_unique_plugin_ids(self) -> PluginCatalog:
+        """Reject marketplace metadata that maps multiple entries to one plugin."""
+        plugin_ids = [plugin.id for plugin in self.plugins]
+        if len(plugin_ids) != len(set(plugin_ids)):
+            raise ValueError("Plugin catalog contains duplicate plugin ids.")
+        return self
