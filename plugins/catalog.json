@@ -1,0 +1,19 @@
+{
+  "plugins": [
+    {"id": "spotify", "name": "Spotify", "version": "1.0.0", "description": "Control Spotify through approved local actions.", "category": "Media"},
+    {"id": "weather", "name": "Weather", "version": "1.0.0", "description": "Retrieve weather through an approved provider.", "category": "Information"},
+    {"id": "calculator", "name": "Calculator", "version": "1.0.0", "description": "Perform local calculator operations.", "category": "Utilities"},
+    {"id": "clock", "name": "Clock", "version": "1.0.0", "description": "Show local time and timers.", "category": "Utilities"},
+    {"id": "github", "name": "GitHub", "version": "1.0.0", "description": "Extend the existing GitHub Agent safely.", "category": "Development"},
+    {"id": "docker", "name": "Docker", "version": "1.0.0", "description": "Extend the existing Development Agent safely.", "category": "Development"},
+    {"id": "gmail", "name": "Gmail", "version": "1.0.0", "description": "Read, search, and draft email through explicit OAuth consent.", "category": "Productivity"},
+    {"id": "google-calendar", "name": "Google Calendar", "version": "1.0.0", "description": "Manage Google Calendar events with conflict detection.", "category": "Productivity"},
+    {"id": "notion", "name": "Notion", "version": "1.0.0", "description": "Search and organize Notion pages through OAuth.", "category": "Productivity"},
+    {"id": "google-drive", "name": "Google Drive", "version": "1.0.0", "description": "Manage Drive files and folders with confirmation-gated deletion.", "category": "Productivity"},
+    {"id": "discord", "name": "Discord", "version": "1.0.0", "description": "Read, search, and draft Discord messages.", "category": "Communication"},
+    {"id": "slack", "name": "Slack", "version": "1.0.0", "description": "Read, search, and draft Slack messages.", "category": "Communication"},
+    {"id": "whatsapp", "name": "WhatsApp", "version": "1.0.0", "description": "Read supported conversations and draft WhatsApp messages.", "category": "Communication"},
+    {"id": "telegram", "name": "Telegram", "version": "1.0.0", "description": "Read, search, and draft Telegram messages.", "category": "Communication"},
+    {"id": "microsoft-teams", "name": "Microsoft Teams", "version": "1.0.0", "description": "Read, search, and draft Teams messages.", "category": "Communication"}
+  ]
+}

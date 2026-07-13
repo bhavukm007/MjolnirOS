@@ -92,6 +92,12 @@ Plugin loading.
 
 Plugin permissions.
 
+Plugin enable/disable state survives a service restart.
+
+Malformed manifests, missing required files, unsupported permissions, unsatisfied dependency versions, and circular dependencies are blocked without interrupting discovery of valid plugins.
+
+Plugin Manager navigation, installed-plugin view, marketplace browsing, search, category filtering, and lifecycle actions.
+
 ---
 
 ## Commit

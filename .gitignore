@@ -39,6 +39,17 @@ htmlcov/
 database/documents/
 database/automation/
 database/learning/
+database/plugins/
+plugins/.defaults_seeded
+plugins/*/
+!plugins/gmail/
+!plugins/gmail/**
+!plugins/google-calendar/
+!plugins/google-calendar/**
+!plugins/notion/
+!plugins/notion/**
+!plugins/google-drive/
+!plugins/google-drive/**
 
 # Temporary
 *.tmp

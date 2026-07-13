@@ -2,6 +2,35 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [1.0.0] - 2026-07-13
+
+### Added
+
+- Added versioned isolated Discord, Slack, WhatsApp, Telegram, and Microsoft Teams communication plugins.
+- Added DPAPI-backed credentials, supported conversation reads/search, persisted drafts, explicit send confirmation, and audit logging.
+- Added persistable startup, tray, appearance, Ollama, memory, and notification settings plus enabled-plugin startup restoration.
+
+## [0.14.0] - 2026-07-13
+
+### Added
+
+- Added process-isolated Gmail, Google Calendar, Notion, and Google Drive productivity plugins with manifests, semantic versions, and reviewed permissions.
+- Added OAuth authorization, secure Windows DPAPI token storage, state validation, provider connection status, and Google token refresh.
+- Added Gmail inbox/search/summary/draft/reply APIs, with explicit confirmation required for every send.
+- Added Calendar event search, timezone-aware creation, updating, deletion, and conflict detection; Notion page/search APIs; and Drive file/folder operations with confirmation-gated deletion.
+- Added the Productivity management dashboard for connection state, account display, manual sync, errors, and health indicators.
+
+## [0.13.0] - 2026-07-12
+
+### Added
+
+- Added the local Plugin SDK, manifest and permissions validation, semantic-version dependency checks, and process-isolated dynamic loading.
+- Added plugin install, uninstall, update, marketplace search, category, and management APIs with dashboard controls.
+- Added packaged Spotify, Weather, Calculator, Clock, GitHub, and Docker plugins plus API coverage for plugin lifecycle and permission validation.
+- Added the navigable React Plugin Manager with installed and marketplace views, search, category filtering, and lifecycle controls.
+- Added persistent enabled/disabled plugin state and frontend integration coverage for plugin activation.
+- Hardened plugin discovery against malformed metadata, missing files, dependency cycles, and atomic state persistence.
+
 ## [0.12.0] - 2026-07-12
 
 ### Added

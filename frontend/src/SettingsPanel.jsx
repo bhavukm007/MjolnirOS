@@ -1,0 +1,10 @@
+import { useEffect, useState } from "react";
+
+export default function SettingsPanel({ request }) {
+  const [settings, setSettings] = useState(null); const [error, setError] = useState("");
+  async function load() { try { setSettings(await request("/settings/user")); setError(""); } catch (e) { setError(e.message); } }
+  useEffect(() => { load(); }, []);
+  async function update(key, value) { try { setSettings(await request("/settings/user", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [key]: value }) })); } catch (e) { setError(e.message); } }
+  if (!settings) return <p className="text-sm text-slate-400">Loading settings…</p>;
+  return <section className="rounded-md border border-white/10 bg-white/[0.04] p-5"><h2 className="text-lg font-semibold">Settings & Security</h2><p className="mt-1 text-sm text-slate-300">Local preferences, notifications, startup behavior, and permission-aware integrations.</p>{error && <p className="mt-3 text-sm text-red-200">{error}</p>}<div className="mt-5 grid gap-3 md:grid-cols-2">{[["Start with Windows", "start_with_windows"], ["Launch minimized", "launch_minimized"], ["Minimize to tray", "minimize_to_tray"], ["Enable memory", "memory_enabled"], ["Enable notifications", "notifications_enabled"], ["Quiet hours", "quiet_hours_enabled"]].map(([label, key]) => <label className="flex items-center justify-between rounded border border-white/10 bg-black/20 p-3 text-sm" key={key}>{label}<input checked={settings[key]} onChange={(event) => update(key, event.target.checked)} type="checkbox" /></label>)}</div><div className="mt-4 grid gap-3 md:grid-cols-2"><label className="text-sm">Theme<select className="mt-1 w-full rounded bg-black/20 p-2" value={settings.theme} onChange={(event) => update("theme", event.target.value)}><option>dark</option><option>light</option><option>system</option></select></label><label className="text-sm">Ollama model<input className="mt-1 w-full rounded bg-black/20 p-2" value={settings.model} onChange={(event) => update("model", event.target.value)} /></label></div></section>;
+}

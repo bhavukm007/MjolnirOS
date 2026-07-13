@@ -1,0 +1,1 @@
+{"id":"google-calendar","name":"Google Calendar","version":"1.0.0","description":"Manage Google Calendar events with conflict detection.","category":"Productivity","entry_point":"plugin.py","dependencies":[]}

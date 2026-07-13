@@ -376,6 +376,10 @@ The Automation Engine is implemented in `backend/app/automation`. `AutomationSer
 
 Learning Mode is implemented in `backend/app/learning`. `LearningService` stores typed, non-sensitive local observations, derives durable preference inferences, and detects recurring routines. Suggestions are persisted in a pending state and may create an Automation workflow only through the explicit approval endpoint. This keeps learning observational and privacy-first while allowing later agents to record activity through the same stable API.
 
+## Phase 13 implementation
+
+The Plugin System is implemented in `backend/app/plugins`. `PluginService` discovers versioned plugin folders, validates manifests, declared permissions, and dependency versions, and invokes entry points in a separate isolated Python interpreter so plugin code never enters the FastAPI process. The API and dashboard provide local marketplace discovery, categories, search, dynamic loading, installation, updates, and safe dependency-aware removal. Plugins remain extension packages with the stable `manifest.json`, `permissions.json`, `plugin.py`, and `README.md` contract.
+
 ---
 
 # Plugin Manager
@@ -630,3 +634,11 @@ No circular dependencies.
 Follow Clean Architecture.
 
 This document is the official architecture reference for MjolnirOS.
+
+## Phase 14 implementation
+
+Productivity integrations are implemented behind `backend/app/productivity` and the `/productivity` API boundary. Provider-facing OAuth and HTTP work is centralized there so process-isolated plugin packages never receive or persist credentials. The dashboard only receives safe connection metadata. Windows DPAPI protects local OAuth token storage, while confirmation-gated Gmail sending and Drive deletion preserve the Permission Manager boundary.
+
+## Phase 15 implementation
+
+Communication integrations live in `backend/app/communication` behind `/communication`. Discord, Slack, WhatsApp, Telegram, and Microsoft Teams stay isolated plugins while the core service protects credentials with Windows DPAPI, persists local drafts and non-secret audit events, and requires confirmation for every send. `backend/app/settings` persists non-secret user preferences. Enabled plugins restore during FastAPI startup and Electron remains in the tray until an explicit Quit.

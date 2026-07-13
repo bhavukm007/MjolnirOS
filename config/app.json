@@ -18,7 +18,12 @@
     "documents",
     "automation",
     "planner",
-    "learning"
+    "learning",
+    "plugins",
+    "productivity",
+    "communication",
+    "settings",
+    "permissions"
   ],
   "vision_upload_directory": "database/documents",
   "vision_max_upload_bytes": 20000000,
@@ -26,5 +31,12 @@
   "ollama_url": "http://127.0.0.1:11434",
   "automation_storage_directory": "database/automation",
   "learning_storage_directory": "database/learning",
-  "learning_suggestion_threshold": 3
+  "learning_suggestion_threshold": 3,
+  "plugin_directory": "plugins",
+  "plugin_catalog_file": "plugins/catalog.json",
+  "plugin_state_file": "database/plugins/state.json",
+  "plugin_load_timeout_seconds": 5,
+  "communication_storage_directory": "database/communication",
+  "settings_storage_directory": "database/settings",
+  "audit_storage_directory": "database/audit"
 }

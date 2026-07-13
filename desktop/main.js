@@ -1,7 +1,10 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, Menu, Tray, nativeImage } = require("electron");
 const path = require("node:path");
 
 const FRONTEND_URL = process.env.MJOLNIROS_FRONTEND_URL || "http://localhost:5173";
+let mainWindow;
+let tray;
+let minimizeToTray = true;
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("disable-gpu");
@@ -12,7 +15,7 @@ function isSmokeMode() {
 }
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 960,
@@ -31,6 +34,38 @@ function createWindow() {
   } else {
     mainWindow.loadURL(FRONTEND_URL);
   }
+
+  mainWindow.on("close", (event) => {
+    if (minimizeToTray && !app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+}
+
+function createTray() {
+  const icon = nativeImage.createFromDataURL("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLJXQAAAABJRU5ErkJggg==");
+  tray = new Tray(icon);
+  tray.setToolTip("MjolnirOS");
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: "Open", click: () => { mainWindow.show(); mainWindow.focus(); } },
+    { label: "Quit", click: () => { app.isQuitting = true; app.quit(); } }
+  ]));
+  tray.on("double-click", () => { mainWindow.show(); mainWindow.focus(); });
+}
+
+async function configureLoginItem() {
+  try {
+    const response = await fetch("http://127.0.0.1:8000/api/v1/settings/user");
+    const body = await response.json();
+    if (body.success) {
+      minimizeToTray = body.data.minimize_to_tray;
+      app.setLoginItemSettings({ openAtLogin: body.data.start_with_windows, openAsHidden: body.data.launch_minimized });
+      if (body.data.launch_minimized) mainWindow.hide();
+    }
+  } catch {
+    // The backend can start after Electron; retain the previous Windows setting.
+  }
 }
 
 app.whenReady().then(() => {
@@ -40,6 +75,8 @@ app.whenReady().then(() => {
   }
 
   createWindow();
+  createTray();
+  configureLoginItem();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -49,7 +86,5 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  // The tray owns the background runtime; Quit is always explicit.
 });

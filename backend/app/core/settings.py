@@ -49,6 +49,26 @@ class AppSettings(BaseSettings):
     automation_storage_directory: Path = Field(default=Path("database/automation"))
     learning_storage_directory: Path = Field(default=Path("database/learning"))
     learning_suggestion_threshold: int = Field(default=3, ge=2, le=100)
+    plugin_directory: Path = Field(default=Path("plugins"))
+    plugin_catalog_file: Path = Field(default=Path("plugins/catalog.json"))
+    plugin_state_file: Path = Field(default=Path("database/plugins/state.json"))
+    plugin_load_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    productivity_storage_directory: Path = Field(default=Path("database/productivity"))
+    communication_storage_directory: Path = Field(
+        default=Path("database/communication")
+    )
+    settings_storage_directory: Path = Field(default=Path("database/settings"))
+    audit_storage_directory: Path = Field(default=Path("database/audit"))
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: str | None = None
+    google_oauth_redirect_uri: str = (
+        "http://127.0.0.1:8000/api/v1/productivity/oauth/google/callback"
+    )
+    notion_oauth_client_id: str | None = None
+    notion_oauth_client_secret: str | None = None
+    notion_oauth_redirect_uri: str = (
+        "http://127.0.0.1:8000/api/v1/productivity/oauth/notion/callback"
+    )
 
     def to_public_settings(self) -> PublicSettings:
         """Return frontend-safe settings."""

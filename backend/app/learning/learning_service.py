@@ -233,9 +233,11 @@ class LearningService:
     def _load(
         self,
         path: Path,
-        model: type[LearningObservation]
-        | type[LearningPreference]
-        | type[LearningSuggestion],
+        model: (
+            type[LearningObservation]
+            | type[LearningPreference]
+            | type[LearningSuggestion]
+        ),
     ) -> list:
         if not path.exists():
             return []

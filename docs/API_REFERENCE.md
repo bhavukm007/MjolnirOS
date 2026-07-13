@@ -176,6 +176,26 @@ DELETE /plugins/uninstall
 
 POST /plugins/update
 
+## Productivity Plugins
+
+GET /productivity/connections
+
+POST /productivity/oauth/{google|notion}/authorize
+
+GET /productivity/oauth/{google|notion}/callback
+
+DELETE /productivity/connections/{google|notion}
+
+POST /productivity/connections/{google|notion}/sync
+
+Gmail: `GET /productivity/gmail/inbox`, `GET /productivity/gmail/summary`, `GET /productivity/gmail/messages/{id}`, `POST /productivity/gmail/drafts`, `POST /productivity/gmail/messages/{id}/reply-draft`, and `POST /productivity/gmail/drafts/{id}/send`. The send body must be `{ "confirmed": true }`.
+
+Calendar: `GET|POST /productivity/calendar/events`, `PUT|DELETE /productivity/calendar/events/{id}`.
+
+Notion: `GET /productivity/notion/search`, `GET /productivity/notion/pages/{id}`, `POST /productivity/notion/pages`, `POST /productivity/notion/meeting-notes`, and `PATCH /productivity/notion/pages/{id}`.
+
+Drive: `POST|GET /productivity/drive/files`, `GET /productivity/drive/files/{id}/download`, `GET|POST /productivity/drive/folders`, `POST /productivity/drive/files/{id}/move`, and `DELETE /productivity/drive/files/{id}`. Drive deletion requires `{ "confirmed": true }`.
+
 ---
 
 ## Settings
@@ -183,6 +203,26 @@ POST /plugins/update
 GET /settings
 
 PUT /settings
+
+GET /settings/user
+
+PUT /settings/user
+
+## Communication Plugins
+
+GET /communication/connections
+
+PUT|DELETE /communication/connections/{provider}
+
+GET /communication/{provider}/conversations
+
+GET /communication/{provider}/search?query=...
+
+POST /communication/{provider}/drafts
+
+POST /communication/drafts/{id}/send requires `{ "confirmed": true }`.
+
+GET /communication/audit/events
 
 ---
 

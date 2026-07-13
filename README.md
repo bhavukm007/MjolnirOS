@@ -16,6 +16,10 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Optional document translation through a locally running Ollama model; no document data is sent to a cloud service.
 - Automation Engine & Planner with built-in routines, saved custom workflows, visible dependency-aware progress, cancellation, and local goal decomposition.
 - Learning Mode with local habit observations, inferred preferences, and user-approved automation recommendations.
+- Plugin Manager with a local marketplace, manifest validation, dependency checks, permission declarations, and restart-free isolated loading.
+- Productivity plugins for Gmail, Google Calendar, Notion, and Google Drive with OAuth connections, provider health, and manual sync controls.
+- Communication plugins for Discord, Slack, WhatsApp Cloud API, Telegram, and Microsoft Teams. They save drafts locally and require a fresh confirmation for every message send.
+- Persisted desktop settings for startup, tray behavior, appearance, Ollama, memory, notifications, and local security controls.
 
 ## Learning Mode
 
@@ -29,9 +33,27 @@ The Automation Engine stores workflows locally in `database/automation/`. Built-
 
 OCR requires [Tesseract OCR](https://github.com/tesseract-ocr/tesseract). On Windows, install it with `winget install --id UB-Mannheim.TesseractOCR -e`, then restart the terminal so the installer can add it to `PATH`. MjolnirOS checks an explicitly configured `MJOLNIROS_TESSERACT_COMMAND` first, then `PATH`, then standard Windows installation roots. If the executable is installed elsewhere, set `MJOLNIROS_TESSERACT_COMMAND` to its full path. Uploads are stored locally in `database/documents/`, are limited to 20 MB by default, and can be configured through `config/app.json` or environment variables.
 
-Future capabilities such as Ollama chat, voice, memory, Windows automation, browser automation, plugins, and tray behavior are intentionally reserved for later documented phases.
+Future capabilities such as cloud synchronization, mobile access, and enterprise deployment are intentionally reserved for later documented phases.
+
+## Plugin System
+
+Phase 13 provides a local-first plugin SDK. On first use, the Plugin Manager materializes the Spotify, Weather, Calculator, Clock, GitHub, and Docker plugins in `plugins/`. Each plugin has `manifest.json`, `permissions.json`, `plugin.py`, and `README.md`. The dashboard marketplace supports category browsing, search, loading, installation, updates, and uninstallation without a backend restart.
+
+Use the **Plugin Manager** navigation item to browse installed extensions or the local marketplace. Enabled state is persisted locally in `database/plugins/state.json`, so an enabled plugin remains enabled after restart; disabling keeps its files available for later activation.
+
+Plugins declare only the reviewed capabilities they need (`automation`, `browser`, `memory`, `network`, or `system`). The manager validates manifests, semantic-version dependencies, and dependency cycles before activation, then invokes the entry point in a separate isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
+
+## Communication and security
+
+Communication credentials are protected with the current Windows user's DPAPI key in `database/communication/`; they are never returned by the API or loaded by isolated plugin processes. Drafts remain unsent until the send request includes `{"confirmed": true}`. Voice calling is intentionally reserved for a future plugin interface.
 
 ## Requirements
+
+## Productivity plugin setup
+
+Gmail, Google Calendar, Google Drive, and Notion are independent Phase 14 plugins. Add OAuth client credentials to a local `.env` file using the names in `.env.example`; do not commit those values. Register the loopback redirect URIs with Google and Notion, start MjolnirOS, then open **Productivity** and select **Connect**. OAuth tokens are protected with the current Windows user's DPAPI key in `database/productivity/` and are never returned through the API or shown in the UI.
+
+Google uses Gmail modify, Calendar, and Drive scopes only. Sending a Gmail draft and deleting a Drive file each require `{"confirmed": true}` on that operation; drafts are never sent automatically. Calendar creation checks the requested time window for conflicts before creating an event.
 
 - Python 3.12+
 - Node.js 20+
