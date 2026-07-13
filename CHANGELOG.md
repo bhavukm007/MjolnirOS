@@ -2,6 +2,14 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [1.0.0] - 2026-07-13
+
+### Added
+
+- Added versioned isolated Discord, Slack, WhatsApp, Telegram, and Microsoft Teams communication plugins.
+- Added DPAPI-backed credentials, supported conversation reads/search, persisted drafts, explicit send confirmation, and audit logging.
+- Added persistable startup, tray, appearance, Ollama, memory, and notification settings plus enabled-plugin startup restoration.
+
 ## [0.14.0] - 2026-07-13
 
 ### Added

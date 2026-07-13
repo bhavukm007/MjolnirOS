@@ -20,7 +20,10 @@
     "planner",
     "learning",
     "plugins",
-    "productivity"
+    "productivity",
+    "communication",
+    "settings",
+    "permissions"
   ],
   "vision_upload_directory": "database/documents",
   "vision_max_upload_bytes": 20000000,
@@ -32,5 +35,8 @@
   "plugin_directory": "plugins",
   "plugin_catalog_file": "plugins/catalog.json",
   "plugin_state_file": "database/plugins/state.json",
-  "plugin_load_timeout_seconds": 5
+  "plugin_load_timeout_seconds": 5,
+  "communication_storage_directory": "database/communication",
+  "settings_storage_directory": "database/settings",
+  "audit_storage_directory": "database/audit"
 }

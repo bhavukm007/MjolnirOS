@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import PluginManager from "./PluginManager.jsx";
 import ProductivityPlugins from "./ProductivityPlugins.jsx";
+import CommunicationPlugins from "./CommunicationPlugins.jsx";
+import SettingsPanel from "./SettingsPanel.jsx";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
@@ -9,7 +11,7 @@ const initialHealth = {
   status: "starting",
   app_name: "MjolnirOS",
   environment: "development",
-  version: "0.1.0",
+  version: "1.0.0",
   default_model: "qwen2.5:3b",
   modules: []
 };
@@ -273,6 +275,8 @@ export default function App() {
           <button className={`rounded px-3 py-2 text-sm ${activeView === "dashboard" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("dashboard")} type="button">Dashboard</button>
           <button className={`rounded px-3 py-2 text-sm ${activeView === "plugins" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("plugins")} type="button">Plugin Manager</button>
           <button className={`rounded px-3 py-2 text-sm ${activeView === "productivity" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("productivity")} type="button">Productivity</button>
+          <button className={`rounded px-3 py-2 text-sm ${activeView === "communication" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("communication")} type="button">Communication</button>
+          <button className={`rounded px-3 py-2 text-sm ${activeView === "settings" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("settings")} type="button">Settings</button>
         </nav>
 
         {activeView === "dashboard" ? <>
@@ -351,7 +355,7 @@ export default function App() {
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
         </section>
-        </> : activeView === "plugins" ? <PluginManager request={fetchJson} /> : <ProductivityPlugins request={fetchJson} />}
+        </> : activeView === "plugins" ? <PluginManager request={fetchJson} /> : activeView === "productivity" ? <ProductivityPlugins request={fetchJson} /> : activeView === "communication" ? <CommunicationPlugins request={fetchJson} /> : <SettingsPanel request={fetchJson} />}
       </section>
     </main>
   );

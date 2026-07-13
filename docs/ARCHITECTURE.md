@@ -638,3 +638,7 @@ This document is the official architecture reference for MjolnirOS.
 ## Phase 14 implementation
 
 Productivity integrations are implemented behind `backend/app/productivity` and the `/productivity` API boundary. Provider-facing OAuth and HTTP work is centralized there so process-isolated plugin packages never receive or persist credentials. The dashboard only receives safe connection metadata. Windows DPAPI protects local OAuth token storage, while confirmation-gated Gmail sending and Drive deletion preserve the Permission Manager boundary.
+
+## Phase 15 implementation
+
+Communication integrations live in `backend/app/communication` behind `/communication`. Discord, Slack, WhatsApp, Telegram, and Microsoft Teams stay isolated plugins while the core service protects credentials with Windows DPAPI, persists local drafts and non-secret audit events, and requires confirmation for every send. `backend/app/settings` persists non-secret user preferences. Enabled plugins restore during FastAPI startup and Electron remains in the tray until an explicit Quit.

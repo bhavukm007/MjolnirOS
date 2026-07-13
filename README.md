@@ -18,6 +18,8 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Learning Mode with local habit observations, inferred preferences, and user-approved automation recommendations.
 - Plugin Manager with a local marketplace, manifest validation, dependency checks, permission declarations, and restart-free isolated loading.
 - Productivity plugins for Gmail, Google Calendar, Notion, and Google Drive with OAuth connections, provider health, and manual sync controls.
+- Communication plugins for Discord, Slack, WhatsApp Cloud API, Telegram, and Microsoft Teams. They save drafts locally and require a fresh confirmation for every message send.
+- Persisted desktop settings for startup, tray behavior, appearance, Ollama, memory, notifications, and local security controls.
 
 ## Learning Mode
 
@@ -40,6 +42,10 @@ Phase 13 provides a local-first plugin SDK. On first use, the Plugin Manager mat
 Use the **Plugin Manager** navigation item to browse installed extensions or the local marketplace. Enabled state is persisted locally in `database/plugins/state.json`, so an enabled plugin remains enabled after restart; disabling keeps its files available for later activation.
 
 Plugins declare only the reviewed capabilities they need (`automation`, `browser`, `memory`, `network`, or `system`). The manager validates manifests, semantic-version dependencies, and dependency cycles before activation, then invokes the entry point in a separate isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
+
+## Communication and security
+
+Communication credentials are protected with the current Windows user's DPAPI key in `database/communication/`; they are never returned by the API or loaded by isolated plugin processes. Drafts remain unsent until the send request includes `{"confirmed": true}`. Voice calling is intentionally reserved for a future plugin interface.
 
 ## Requirements
 

@@ -1,0 +1,1 @@
+{"id":"slack","name":"Slack","version":"1.0.0","description":"Read, search, and draft Slack messages.","category":"Communication","entry_point":"plugin.py","dependencies":[]}

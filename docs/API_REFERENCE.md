@@ -204,6 +204,26 @@ GET /settings
 
 PUT /settings
 
+GET /settings/user
+
+PUT /settings/user
+
+## Communication Plugins
+
+GET /communication/connections
+
+PUT|DELETE /communication/connections/{provider}
+
+GET /communication/{provider}/conversations
+
+GET /communication/{provider}/search?query=...
+
+POST /communication/{provider}/drafts
+
+POST /communication/drafts/{id}/send requires `{ "confirmed": true }`.
+
+GET /communication/audit/events
+
 ---
 
 ## Logs

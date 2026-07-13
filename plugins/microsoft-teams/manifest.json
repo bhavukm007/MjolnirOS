@@ -1,0 +1,1 @@
+{"id":"microsoft-teams","name":"Microsoft Teams","version":"1.0.0","description":"Read, search, and draft Teams messages.","category":"Communication","entry_point":"plugin.py","dependencies":[]}

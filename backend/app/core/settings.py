@@ -54,6 +54,11 @@ class AppSettings(BaseSettings):
     plugin_state_file: Path = Field(default=Path("database/plugins/state.json"))
     plugin_load_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     productivity_storage_directory: Path = Field(default=Path("database/productivity"))
+    communication_storage_directory: Path = Field(
+        default=Path("database/communication")
+    )
+    settings_storage_directory: Path = Field(default=Path("database/settings"))
+    audit_storage_directory: Path = Field(default=Path("database/audit"))
     google_oauth_client_id: str | None = None
     google_oauth_client_secret: str | None = None
     google_oauth_redirect_uri: str = (

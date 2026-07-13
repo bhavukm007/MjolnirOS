@@ -37,6 +37,8 @@ _ALLOWED_PERMISSIONS = {
     "notion",
     "drive",
     "filesystem",
+    "communication_read",
+    "communication_send",
 }
 _DEFAULT_PLUGINS = (
     ("spotify", "Spotify", "Media", "Control Spotify through approved local actions."),
@@ -79,6 +81,31 @@ _DEFAULT_PLUGINS = (
         "Productivity",
         "Manage Drive files and folders with confirmation-gated deletion.",
     ),
+    (
+        "discord",
+        "Discord",
+        "Communication",
+        "Read, search, and draft Discord messages.",
+    ),
+    ("slack", "Slack", "Communication", "Read, search, and draft Slack messages."),
+    (
+        "whatsapp",
+        "WhatsApp",
+        "Communication",
+        "Read supported conversations and draft WhatsApp messages.",
+    ),
+    (
+        "telegram",
+        "Telegram",
+        "Communication",
+        "Read, search, and draft Telegram messages.",
+    ),
+    (
+        "microsoft-teams",
+        "Microsoft Teams",
+        "Communication",
+        "Read, search, and draft Teams messages.",
+    ),
 )
 
 _DEFAULT_PERMISSION_MAP = {
@@ -86,6 +113,11 @@ _DEFAULT_PERMISSION_MAP = {
     "google-calendar": ["oauth", "network", "calendar"],
     "notion": ["oauth", "network", "notion"],
     "google-drive": ["oauth", "network", "drive", "filesystem"],
+    "discord": ["oauth", "network", "communication_read", "communication_send"],
+    "slack": ["oauth", "network", "communication_read", "communication_send"],
+    "whatsapp": ["oauth", "network", "communication_read", "communication_send"],
+    "telegram": ["oauth", "network", "communication_read", "communication_send"],
+    "microsoft-teams": ["oauth", "network", "communication_read", "communication_send"],
 }
 
 
@@ -260,6 +292,20 @@ class PluginService:
         self._set_enabled(plugin_id, False)
         logger.info("plugin_disabled", extra={"plugin_id": plugin_id})
         return record.model_copy(update={"status": PluginStatus.DISABLED})
+
+    def load_enabled_plugins(self) -> list[PluginRecord]:
+        """Restore enabled plugins during startup without blocking unrelated plugins."""
+        records: list[PluginRecord] = []
+        for record in self.list_plugins():
+            if record.status is PluginStatus.LOADED:
+                try:
+                    records.append(self.load(record.manifest.id))
+                except HTTPException:
+                    logger.warning(
+                        "startup_plugin_load_failed",
+                        extra={"plugin_id": record.manifest.id},
+                    )
+        return records
 
     def _record(self, path: Path) -> PluginRecord:
         if not path.is_dir():

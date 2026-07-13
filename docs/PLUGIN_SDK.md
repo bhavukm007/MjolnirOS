@@ -85,6 +85,10 @@ Phase 14 adds `oauth`, `email`, `calendar`, `notion`, `drive`, and `filesystem` 
 
 ---
 
+## Communication plugin permissions
+
+Communication plugins use `communication_read` and `communication_send` with `oauth` and `network`. Credentials, provider HTTP, confirmations, and audit events remain in the core API boundary. Voice calling is reserved for future support.
+
 # Default Plugins
 
 Spotify
