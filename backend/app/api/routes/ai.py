@@ -1,0 +1,155 @@
+"""Local Ollama health, model discovery, and streaming chat routes."""
+
+from collections.abc import AsyncIterator
+import json
+import logging
+
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+
+from backend.app.ai.ollama_client import OllamaClient, OllamaUnavailableError
+from backend.app.core.responses import ApiResponse
+from backend.app.core.settings import get_settings
+from backend.app.domain.ai import AiHealthStatus, AiModelsStatus, ChatRequest
+from backend.app.domain.memory import MemoryCreate
+from backend.app.api.routes.memory import get_memory_store
+from backend.app.api.routes.windows import get_windows_controller
+from backend.app.api.routes.browser import get_browser_controller
+from backend.app.browser.natural_language import parse_browser_command
+from backend.app.windows.natural_language import execute_natural_command
+from backend.app.api.routes.github import get_github_controller
+from backend.app.github.natural_language import parse_github_command
+from backend.app.api.routes.coding import get_coding_controller
+from backend.app.coding.natural_language import parse_coding_command
+from backend.app.api.routes.coding_ai import get_ai_coding_controller
+from backend.app.coding.ai_natural_language import parse_ai_coding_command
+from backend.app.api.routes.build import get_build_controller
+from backend.app.coding.build_natural_language import parse_build_command
+
+router = APIRouter(tags=["ai"])
+logger = logging.getLogger(__name__)
+
+
+def get_ollama_client() -> OllamaClient:
+    """Construct the local Ollama client from centralized configuration."""
+    return OllamaClient(get_settings())
+
+
+@router.get("/ai/health", response_model=ApiResponse[AiHealthStatus])
+async def get_ai_health() -> ApiResponse[AiHealthStatus]:
+    """Return a non-failing availability check for the local Ollama runtime."""
+    settings = get_settings()
+    try:
+        models = await get_ollama_client().list_models()
+    except OllamaUnavailableError as error:
+        return ApiResponse(
+            success=True,
+            message="Ollama is unavailable.",
+            data=AiHealthStatus(
+                available=False,
+                default_model=settings.default_model,
+                default_model_available=False,
+                message=str(error),
+            ),
+        )
+
+    model_names = {model.name for model in models}
+    return ApiResponse(
+        success=True,
+        message="Ollama is available.",
+        data=AiHealthStatus(
+            available=True,
+            default_model=settings.default_model,
+            default_model_available=settings.default_model in model_names,
+            message="Local Ollama runtime is ready.",
+        ),
+    )
+
+
+@router.get("/ai/models", response_model=ApiResponse[AiModelsStatus])
+async def get_ai_models() -> ApiResponse[AiModelsStatus]:
+    """Return locally installed Ollama models without failing when offline."""
+    try:
+        models = await get_ollama_client().list_models()
+    except OllamaUnavailableError:
+        return ApiResponse(
+            success=True,
+            message="Ollama is unavailable.",
+            data=AiModelsStatus(available=False, models=[]),
+        )
+    return ApiResponse(
+        success=True,
+        message="Local Ollama models loaded.",
+        data=AiModelsStatus(available=True, models=models),
+    )
+
+
+@router.post("/chat")
+async def stream_chat(request: ChatRequest) -> StreamingResponse:
+    """Stream assistant content as NDJSON for the desktop chat interface."""
+    settings = get_settings()
+    model = request.model or settings.default_model
+    build_request = parse_build_command(request.message)
+    if build_request is not None:
+        build_result = get_build_controller().execute(build_request)
+        async def build_events() -> AsyncIterator[str]:
+            yield _event("token", content=build_result.message)
+            yield _event("done")
+        return StreamingResponse(build_events(), media_type="application/x-ndjson")
+    ai_coding_request = parse_ai_coding_command(request.message)
+    if ai_coding_request is not None:
+        ai_coding_request.model = model
+        ai_coding_result = await get_ai_coding_controller().execute(ai_coding_request)
+        async def ai_coding_events() -> AsyncIterator[str]:
+            yield _event("token", content=ai_coding_result.data.get("response", ai_coding_result.message))
+            yield _event("done")
+        return StreamingResponse(ai_coding_events(), media_type="application/x-ndjson")
+    coding_request = parse_coding_command(request.message)
+    if coding_request is not None:
+        coding_result = get_coding_controller().execute(coding_request)
+        async def coding_events() -> AsyncIterator[str]:
+            yield _event("token", content=coding_result.message)
+            yield _event("done")
+        return StreamingResponse(coding_events(), media_type="application/x-ndjson")
+    browser_request = parse_browser_command(request.message)
+    if browser_request is not None:
+        browser_result = await get_browser_controller().execute(browser_request)
+        async def browser_events() -> AsyncIterator[str]:
+            yield _event("token", content=browser_result.message)
+            yield _event("done")
+        return StreamingResponse(browser_events(), media_type="application/x-ndjson")
+    github_request = parse_github_command(request.message)
+    if github_request is not None:
+        github_result = await get_github_controller().execute(github_request)
+        async def github_events() -> AsyncIterator[str]:
+            yield _event("token", content=github_result.message)
+            yield _event("done")
+        return StreamingResponse(github_events(), media_type="application/x-ndjson")
+    action_result = execute_natural_command(request.message, get_windows_controller())
+    if action_result is not None:
+        async def action_events() -> AsyncIterator[str]:
+            yield _event("token", content=action_result.message)
+            yield _event("done")
+        return StreamingResponse(action_events(), media_type="application/x-ndjson")
+    get_memory_store().save(MemoryCreate(memory_type="conversation", content=request.message, metadata={"role": "user"}))
+
+    async def events() -> AsyncIterator[str]:
+        reply = ""
+        try:
+            async for content in get_ollama_client().stream_chat(model, request.history, request.message):
+                if content:
+                    reply += content
+                    yield _event("token", content=content)
+            if reply:
+                get_memory_store().save(MemoryCreate(memory_type="conversation", content=reply, metadata={"role": "assistant"}))
+            yield _event("done")
+        except OllamaUnavailableError as error:
+            logger.warning("ollama_stream_failed", extra={"model": model})
+            yield _event("error", message=str(error))
+
+    return StreamingResponse(events(), media_type="application/x-ndjson")
+
+
+def _event(event_type: str, **payload: str) -> str:
+    """Serialize a single newline-delimited stream event."""
+    return f"{json.dumps({'type': event_type, **payload}, ensure_ascii=True)}\n"

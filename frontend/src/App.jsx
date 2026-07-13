@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import PluginManager from "./PluginManager.jsx";
 import ProductivityPlugins from "./ProductivityPlugins.jsx";
 import CommunicationPlugins from "./CommunicationPlugins.jsx";
 import SettingsPanel from "./SettingsPanel.jsx";
+import { VoiceRuntime } from "./voice_runtime.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
@@ -288,6 +289,7 @@ export default function App() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <AssistantConsole />
           <div className="rounded-md border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
             <h2 className="text-lg font-semibold">Foundation Modules</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -483,4 +485,30 @@ function RuntimeRow({ label, value }) {
       <dd className="text-right font-medium text-slate-100">{value}</dd>
     </div>
   );
+}
+
+function AssistantConsole() {
+  const [draft, setDraft] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [state, setState] = useState("Voice checking");
+  const [listening, setListening] = useState(false);
+  const runtime = useRef(null);
+  useEffect(() => () => { runtime.current?.stop(); }, []);
+  async function send(message) {
+    if (!message.trim()) return;
+    setMessages((current) => [...current, { role: "You", text: message }, { role: "Mjolnir", text: "…" }]); setDraft("");
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history: [] }) });
+      const reader = response.body?.getReader(); const decoder = new TextDecoder(); let answer = "";
+      while (reader) { const { done, value } = await reader.read(); if (done) break; decoder.decode(value).split("\n").filter(Boolean).forEach((line) => { const event = JSON.parse(line); if (event.type === "token") answer += event.content; }); }
+      setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: answer || "No response received." }]);
+      if (answer) await fetch(`${API_BASE_URL}/voice/speak`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: answer }) });
+    } catch (error) { setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: error.message }]); }
+  }
+  async function toggleVoice() {
+    if (listening) { await runtime.current?.stop(); setListening(false); return; }
+    runtime.current = new VoiceRuntime({ apiBaseUrl: API_BASE_URL, onCommand: send, onState: setState, onInterruption: () => { void fetch(`${API_BASE_URL}/voice/speak`, { method: "DELETE" }); } });
+    try { await runtime.current.start(); setListening(true); } catch (error) { setState(error.message); }
+  }
+  return <section className="rounded-md border border-cyan-400/30 bg-black/20 p-5 lg:col-span-2"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Voice Assistant</h2><p className="text-sm text-cyan-100">{state}</p></div><button className="rounded bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950" type="button" onClick={toggleVoice}>{listening ? "Stop listening" : "Start listening"}</button></div><div className="mt-4 max-h-48 space-y-2 overflow-auto text-sm">{messages.map((item, index) => <p key={index}><strong>{item.role}:</strong> {item.text}</p>)}</div><form className="mt-4 flex gap-2" onSubmit={(event) => { event.preventDefault(); void send(draft); }}><input className="min-w-0 flex-1 rounded border border-white/20 bg-black/30 px-3 py-2" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a command or say Mjolnir"/><button className="rounded border border-white/20 px-3 py-2" type="submit">Send</button></form></section>;
 }

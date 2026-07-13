@@ -18,6 +18,8 @@ class PublicSettings(BaseSettings):
     environment: str
     api_prefix: str
     default_model: str
+    voice_enabled: bool
+    voice_wake_word: str
     enabled_foundation_modules: list[str]
 
 
@@ -47,6 +49,30 @@ class AppSettings(BaseSettings):
     vision_max_extract_characters: int = 100_000
     tesseract_command: str | None = None
     ollama_url: str = "http://127.0.0.1:11434"
+    ollama_base_url: str = "http://127.0.0.1:11434/api"
+    ollama_timeout_seconds: float = 120.0
+    voice_enabled: bool = True
+    voice_model_path: Path = Path("assets/models/vosk-model-small-en-us-0.15")
+    voice_sample_rate: int = 16_000
+    voice_wake_word: str = "Mjolnir"
+    voice_tts_rate: int = 185
+    voice_tts_volume: float = 1.0
+    database_path: Path = Path("database/mjolniros.db")
+    chroma_path: Path = Path("database/chroma")
+    windows_search_root: Path = Path("C:/Users")
+    windows_screenshot_path: Path = Path("assets/screenshots")
+    browser_session_path: Path = Path("database/browser_sessions")
+    browser_download_path: Path = Path("assets/downloads")
+    browser_screenshot_path: Path = Path("assets/browser_screenshots")
+    browser_headless: bool = False
+    browser_summary_timeout_seconds: float = 30.0
+    github_api_base_url: str = "https://api.github.com"
+    github_token: str | None = None
+    github_default_repository: Path = Path(".")
+    coding_vscode_command: str = "code"
+    coding_project_roots: list[Path] = Field(default_factory=lambda: [Path.cwd()])
+    coding_command_timeout_seconds: float = 120.0
+    coding_ai_max_context_chars: int = 12_000
     automation_storage_directory: Path = Field(default=Path("database/automation"))
     learning_storage_directory: Path = Field(default=Path("database/learning"))
     learning_suggestion_threshold: int = Field(default=3, ge=2, le=100)
@@ -78,6 +104,8 @@ class AppSettings(BaseSettings):
             environment=self.environment,
             api_prefix=self.api_prefix,
             default_model=self.default_model,
+            voice_enabled=self.voice_enabled,
+            voice_wake_word=self.voice_wake_word,
             enabled_foundation_modules=self.enabled_foundation_modules,
         )
 
