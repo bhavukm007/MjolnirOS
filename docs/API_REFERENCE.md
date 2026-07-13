@@ -202,11 +202,11 @@ Drive: `POST|GET /productivity/drive/files`, `GET /productivity/drive/files/{id}
 
 GET /settings
 
-PUT /settings
-
 GET /settings/user
 
 PUT /settings/user
+
+`GET /settings` returns deployment-safe runtime configuration. `GET|PUT /settings/user` reads and persists user preferences.
 
 ## Communication Plugins
 

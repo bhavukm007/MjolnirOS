@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, nativeImage } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } = require("electron");
 const path = require("node:path");
 
 const FRONTEND_URL = process.env.MJOLNIROS_FRONTEND_URL || "http://localhost:5173";
@@ -49,9 +49,20 @@ function createTray() {
   tray.setToolTip("MjolnirOS");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Open", click: () => { mainWindow.show(); mainWindow.focus(); } },
+    { label: "Restart", click: () => { app.relaunch(); app.isQuitting = true; app.quit(); } },
+    { label: "Settings", click: () => { mainWindow.show(); mainWindow.focus(); } },
     { label: "Quit", click: () => { app.isQuitting = true; app.quit(); } }
   ]));
   tray.on("double-click", () => { mainWindow.show(); mainWindow.focus(); });
+}
+
+function applyDesktopSettings(settings) {
+  if (!settings || typeof settings !== "object") return;
+  minimizeToTray = settings.minimize_to_tray !== false;
+  app.setLoginItemSettings({
+    openAtLogin: settings.start_with_windows === true,
+    openAsHidden: settings.launch_minimized === true
+  });
 }
 
 async function configureLoginItem() {
@@ -59,8 +70,7 @@ async function configureLoginItem() {
     const response = await fetch("http://127.0.0.1:8000/api/v1/settings/user");
     const body = await response.json();
     if (body.success) {
-      minimizeToTray = body.data.minimize_to_tray;
-      app.setLoginItemSettings({ openAtLogin: body.data.start_with_windows, openAsHidden: body.data.launch_minimized });
+      applyDesktopSettings(body.data);
       if (body.data.launch_minimized) mainWindow.hide();
     }
   } catch {
@@ -76,6 +86,7 @@ app.whenReady().then(() => {
 
   createWindow();
   createTray();
+  ipcMain.on("settings-updated", (_event, settings) => applyDesktopSettings(settings));
   configureLoginItem();
 
   app.on("activate", () => {

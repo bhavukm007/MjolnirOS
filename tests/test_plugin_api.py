@@ -167,6 +167,36 @@ def test_plugin_catalog_rejects_duplicate_ids() -> None:
         PluginCatalog(plugins=[manifest, manifest])
 
 
+def test_plugin_rejects_incomplete_permissions(tmp_path, monkeypatch) -> None:
+    client = _client(tmp_path, monkeypatch)
+    plugin = tmp_path / "plugins" / "permission-test"
+    plugin.mkdir(parents=True)
+    (plugin / "manifest.json").write_text(
+        json.dumps(
+            {
+                "id": "permission-test",
+                "name": "Permission test",
+                "version": "1.0.0",
+                "description": "Permission validation.",
+                "category": "Testing",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (plugin / "permissions.json").write_text(
+        json.dumps({"permissions": ["communication_send"]}), encoding="utf-8"
+    )
+    (plugin / "plugin.py").write_text("def activate(): pass\n", encoding="utf-8")
+    (plugin / "README.md").write_text("# Permission test\n", encoding="utf-8")
+    record = next(
+        item
+        for item in client.get("/api/v1/plugins").json()["data"]
+        if item["manifest"]["id"] == "permission-test"
+    )
+    assert record["status"] == "blocked"
+    assert "Missing required permissions" in record["blocked_reason"]
+
+
 def test_plugin_rejects_version_conflicts_load_failures_and_dependent_removal(
     tmp_path, monkeypatch
 ) -> None:

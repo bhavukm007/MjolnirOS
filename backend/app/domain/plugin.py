@@ -39,6 +39,13 @@ class PluginPermissions(BaseModel):
 
     permissions: list[str] = Field(default_factory=list, max_length=20)
 
+    @model_validator(mode="after")
+    def validate_unique_permissions(self) -> PluginPermissions:
+        """Reject duplicate permission declarations before plugin activation."""
+        if len(self.permissions) != len(set(self.permissions)):
+            raise ValueError("Plugin permissions must not contain duplicates.")
+        return self
+
 
 class PluginRecord(BaseModel):
     """A discovered plugin with resolved dependency and loading state."""

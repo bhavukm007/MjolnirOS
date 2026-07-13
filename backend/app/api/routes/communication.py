@@ -23,7 +23,7 @@ def _service() -> CommunicationService:
 
 
 @router.get("/connections", response_model=ApiResponse[list[CommunicationConnection]])
-async def connections() -> ApiResponse[list[CommunicationConnection]]:
+def connections() -> ApiResponse[list[CommunicationConnection]]:
     return ApiResponse(
         success=True,
         message="Communication connections loaded.",
@@ -34,7 +34,7 @@ async def connections() -> ApiResponse[list[CommunicationConnection]]:
 @router.put(
     "/connections/{provider}", response_model=ApiResponse[CommunicationConnection]
 )
-async def connect(
+def connect(
     provider: CommunicationProvider, payload: CredentialConnect
 ) -> ApiResponse[CommunicationConnection]:
     return ApiResponse(
@@ -45,7 +45,7 @@ async def connect(
 
 
 @router.delete("/connections/{provider}", status_code=status.HTTP_204_NO_CONTENT)
-async def disconnect(provider: CommunicationProvider) -> Response:
+def disconnect(provider: CommunicationProvider) -> Response:
     _service().disconnect(provider)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -53,7 +53,7 @@ async def disconnect(provider: CommunicationProvider) -> Response:
 @router.get(
     "/{provider}/conversations", response_model=ApiResponse[list[dict[str, object]]]
 )
-async def conversations(
+def conversations(
     provider: CommunicationProvider,
 ) -> ApiResponse[list[dict[str, object]]]:
     return ApiResponse(
@@ -64,7 +64,7 @@ async def conversations(
 
 
 @router.get("/{provider}/search", response_model=ApiResponse[list[dict[str, object]]])
-async def search(
+def search(
     provider: CommunicationProvider, query: str
 ) -> ApiResponse[list[dict[str, object]]]:
     return ApiResponse(
@@ -79,7 +79,7 @@ async def search(
     response_model=ApiResponse[MessageDraft],
     status_code=status.HTTP_201_CREATED,
 )
-async def create_draft(
+def create_draft(
     provider: CommunicationProvider, payload: MessageDraftCreate
 ) -> ApiResponse[MessageDraft]:
     return ApiResponse(
@@ -90,7 +90,7 @@ async def create_draft(
 
 
 @router.post("/drafts/{draft_id}/send", response_model=ApiResponse[MessageDraft])
-async def send_draft(
+def send_draft(
     draft_id: str, payload: SendMessageConfirmation
 ) -> ApiResponse[MessageDraft]:
     return ApiResponse(
@@ -101,7 +101,7 @@ async def send_draft(
 
 
 @router.get("/audit/events", response_model=ApiResponse[list[AuditEvent]])
-async def audit_events() -> ApiResponse[list[AuditEvent]]:
+def audit_events() -> ApiResponse[list[AuditEvent]]:
     return ApiResponse(
         success=True, message="Audit events loaded.", data=_service().audit_events()
     )

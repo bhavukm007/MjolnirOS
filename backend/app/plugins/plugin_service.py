@@ -120,6 +120,15 @@ _DEFAULT_PERMISSION_MAP = {
     "microsoft-teams": ["oauth", "network", "communication_read", "communication_send"],
 }
 
+_PERMISSION_REQUIREMENTS = {
+    "communication_read": {"oauth", "network"},
+    "communication_send": {"oauth", "network"},
+    "email": {"oauth", "network"},
+    "calendar": {"oauth", "network"},
+    "notion": {"oauth", "network"},
+    "drive": {"oauth", "network"},
+}
+
 
 class PluginService:
     """Manage local plugins without exposing plugin code to the backend process."""
@@ -348,6 +357,22 @@ class PluginService:
                 permissions=permissions,
                 status=PluginStatus.BLOCKED,
                 blocked_reason=f"Unknown permissions: {', '.join(unknown)}.",
+            )
+        missing_required_permissions = sorted(
+            required_permission
+            for permission in permissions
+            for required_permission in _PERMISSION_REQUIREMENTS.get(permission, set())
+            if required_permission not in permissions
+        )
+        if missing_required_permissions:
+            return PluginRecord(
+                manifest=manifest,
+                permissions=permissions,
+                status=PluginStatus.BLOCKED,
+                blocked_reason=(
+                    "Missing required permissions: "
+                    f"{', '.join(missing_required_permissions)}."
+                ),
             )
         installed = self._installed_manifests()
         missing_dependencies = [

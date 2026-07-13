@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from functools import lru_cache
 import json
+import os
 from pathlib import Path
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, DotEnvSettingsSource, SettingsConfigDict
 
 
 class PublicSettings(BaseSettings):
@@ -96,4 +97,13 @@ def get_settings() -> AppSettings:
     """Load settings from config/app.json and environment variables."""
     base_settings = AppSettings()
     file_settings = _load_file_settings(base_settings.config_file)
-    return AppSettings(**file_settings)
+    dotenv_settings = DotEnvSettingsSource(AppSettings)()
+    environment_settings = {
+        field_name: value
+        for field_name in AppSettings.model_fields
+        if (value := os.getenv(f"MJOLNIROS_{field_name.upper()}")) is not None
+    }
+    resolved_settings = dict(file_settings)
+    resolved_settings.update(dotenv_settings)
+    resolved_settings.update(environment_settings)
+    return AppSettings(**resolved_settings)

@@ -2,6 +2,15 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [1.0.1] - 2026-07-13
+
+### Fixed
+
+- Restored environment and `.env` precedence over `config/app.json` and made FastAPI startup use its injected application settings.
+- Moved blocking provider operations out of async route handlers, removed the accidental frontend root-package dependency, and made the frontend Docker image deterministic and production-static.
+- Synchronized Electron login/tray settings immediately after a user settings update and restored the tray restart/settings actions.
+- Hardened plugin metadata validation by rejecting duplicate and incomplete permission declarations.
+
 ## [1.0.0] - 2026-07-13
 
 ### Added

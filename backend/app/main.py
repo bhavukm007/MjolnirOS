@@ -16,7 +16,7 @@ from backend.app.plugins.plugin_service import PluginService
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Configure application services for startup and shutdown."""
-    settings = get_settings()
+    settings: AppSettings = app.state.settings
     configure_logging(settings)
     PluginService(settings).load_enabled_plugins()
     logging.getLogger(__name__).info(
@@ -37,6 +37,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         openapi_url=f"{app_settings.api_prefix}/openapi.json",
         lifespan=lifespan,
     )
+    app.state.settings = app_settings
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[app_settings.frontend_url],

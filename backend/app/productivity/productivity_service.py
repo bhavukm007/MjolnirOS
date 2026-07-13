@@ -14,6 +14,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from backend.app.core.settings import AppSettings
 from backend.app.domain.productivity import (
@@ -471,7 +472,8 @@ class ProductivityService:
                 file.content_type or "application/octet-stream",
             ),
         }
-        return self._request(
+        return await run_in_threadpool(
+            self._request,
             "POST",
             "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
             token,

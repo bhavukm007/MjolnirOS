@@ -87,7 +87,7 @@ Phase 14 adds `oauth`, `email`, `calendar`, `notion`, `drive`, and `filesystem` 
 
 ## Communication plugin permissions
 
-Communication plugins use `communication_read` and `communication_send` with `oauth` and `network`. Credentials, provider HTTP, confirmations, and audit events remain in the core API boundary. Voice calling is reserved for future support.
+Communication plugins use `communication_read` and `communication_send` with `oauth` and `network`. OAuth-backed provider permissions (`email`, `calendar`, `notion`, and `drive`) likewise require `oauth` and `network`; duplicate or incomplete declarations are blocked. Credentials, provider HTTP, confirmations, and audit events remain in the core API boundary. Voice calling is reserved for future support.
 
 # Default Plugins
 

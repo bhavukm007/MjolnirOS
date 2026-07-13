@@ -1,6 +1,6 @@
 # MjolnirOS
 
-MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. It includes the Phase 10 Vision & Document Agent, with private document processing and screenshot understanding.
+MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. Version 1.0 includes private vision/document processing, automation, learning, plugins, productivity integrations, communication drafts, and persisted desktop settings.
 
 ## Current capabilities
 
@@ -33,7 +33,7 @@ The Automation Engine stores workflows locally in `database/automation/`. Built-
 
 OCR requires [Tesseract OCR](https://github.com/tesseract-ocr/tesseract). On Windows, install it with `winget install --id UB-Mannheim.TesseractOCR -e`, then restart the terminal so the installer can add it to `PATH`. MjolnirOS checks an explicitly configured `MJOLNIROS_TESSERACT_COMMAND` first, then `PATH`, then standard Windows installation roots. If the executable is installed elsewhere, set `MJOLNIROS_TESSERACT_COMMAND` to its full path. Uploads are stored locally in `database/documents/`, are limited to 20 MB by default, and can be configured through `config/app.json` or environment variables.
 
-Future capabilities such as cloud synchronization, mobile access, and enterprise deployment are intentionally reserved for later documented phases.
+Cloud synchronization, mobile access, voice calling, and enterprise deployment are intentionally outside the v1.0 scope.
 
 ## Plugin System
 
@@ -41,7 +41,7 @@ Phase 13 provides a local-first plugin SDK. On first use, the Plugin Manager mat
 
 Use the **Plugin Manager** navigation item to browse installed extensions or the local marketplace. Enabled state is persisted locally in `database/plugins/state.json`, so an enabled plugin remains enabled after restart; disabling keeps its files available for later activation.
 
-Plugins declare only the reviewed capabilities they need (`automation`, `browser`, `memory`, `network`, or `system`). The manager validates manifests, semantic-version dependencies, and dependency cycles before activation, then invokes the entry point in a separate isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
+Plugins declare reviewed capabilities including `automation`, `browser`, `memory`, `network`, `system`, and provider-specific integration permissions. The manager validates manifests, permission combinations, semantic-version dependencies, and dependency cycles before activation, then invokes the entry point in a separate isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
 
 ## Communication and security
 

@@ -29,7 +29,7 @@ def _service() -> ProductivityService:
 
 
 @router.get("/connections", response_model=ApiResponse[list[ConnectionStatus]])
-async def connections() -> ApiResponse[list[ConnectionStatus]]:
+def connections() -> ApiResponse[list[ConnectionStatus]]:
     return ApiResponse(
         success=True,
         message="Productivity connections loaded.",
@@ -38,7 +38,7 @@ async def connections() -> ApiResponse[list[ConnectionStatus]]:
 
 
 @router.post("/oauth/{provider}/authorize", response_model=ApiResponse[dict[str, str]])
-async def authorize(provider: ProductivityProvider) -> ApiResponse[dict[str, str]]:
+def authorize(provider: ProductivityProvider) -> ApiResponse[dict[str, str]]:
     return ApiResponse(
         success=True,
         message="Open the authorization URL to connect.",
@@ -47,7 +47,7 @@ async def authorize(provider: ProductivityProvider) -> ApiResponse[dict[str, str
 
 
 @router.get("/oauth/{provider}/callback", response_model=ApiResponse[ConnectionStatus])
-async def oauth_callback(
+def oauth_callback(
     provider: ProductivityProvider, code: str, state: str
 ) -> ApiResponse[ConnectionStatus]:
     return ApiResponse(
@@ -58,7 +58,7 @@ async def oauth_callback(
 
 
 @router.delete("/connections/{provider}", status_code=status.HTTP_204_NO_CONTENT)
-async def disconnect(provider: ProductivityProvider) -> Response:
+def disconnect(provider: ProductivityProvider) -> Response:
     _service().disconnect(provider)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -66,7 +66,7 @@ async def disconnect(provider: ProductivityProvider) -> Response:
 @router.post(
     "/connections/{provider}/sync", response_model=ApiResponse[ConnectionStatus]
 )
-async def sync(provider: ProductivityProvider) -> ApiResponse[ConnectionStatus]:
+def sync(provider: ProductivityProvider) -> ApiResponse[ConnectionStatus]:
     return ApiResponse(
         success=True,
         message="Productivity plugin synchronized.",
@@ -75,7 +75,7 @@ async def sync(provider: ProductivityProvider) -> ApiResponse[ConnectionStatus]:
 
 
 @router.get("/gmail/inbox", response_model=ApiResponse[list[dict[str, object]]])
-async def gmail_inbox(query: str | None = None) -> ApiResponse[list[dict[str, object]]]:
+def gmail_inbox(query: str | None = None) -> ApiResponse[list[dict[str, object]]]:
     return ApiResponse(
         success=True, message="Inbox loaded.", data=_service().gmail_inbox(query)
     )
@@ -84,14 +84,14 @@ async def gmail_inbox(query: str | None = None) -> ApiResponse[list[dict[str, ob
 @router.get(
     "/gmail/messages/{message_id}", response_model=ApiResponse[dict[str, object]]
 )
-async def gmail_message(message_id: str) -> ApiResponse[dict[str, object]]:
+def gmail_message(message_id: str) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
         success=True, message="Email loaded.", data=_service().gmail_message(message_id)
     )
 
 
 @router.get("/gmail/summary", response_model=ApiResponse[dict[str, object]])
-async def gmail_summary() -> ApiResponse[dict[str, object]]:
+def gmail_summary() -> ApiResponse[dict[str, object]]:
     return ApiResponse(
         success=True, message="Inbox summarized.", data=_service().gmail_summary()
     )
@@ -102,7 +102,7 @@ async def gmail_summary() -> ApiResponse[dict[str, object]]:
     response_model=ApiResponse[dict[str, object]],
     status_code=status.HTTP_201_CREATED,
 )
-async def create_draft(payload: EmailDraftCreate) -> ApiResponse[dict[str, object]]:
+def create_draft(payload: EmailDraftCreate) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
         success=True,
         message="Email saved as a draft; it was not sent.",
@@ -114,7 +114,7 @@ async def create_draft(payload: EmailDraftCreate) -> ApiResponse[dict[str, objec
     "/gmail/messages/{message_id}/reply-draft",
     response_model=ApiResponse[dict[str, object]],
 )
-async def reply_draft(
+def reply_draft(
     message_id: str, payload: dict[str, str]
 ) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
@@ -127,7 +127,7 @@ async def reply_draft(
 @router.post(
     "/gmail/drafts/{draft_id}/send", response_model=ApiResponse[dict[str, object]]
 )
-async def send_draft(
+def send_draft(
     draft_id: str, confirmation: SendConfirmation
 ) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
@@ -138,7 +138,7 @@ async def send_draft(
 
 
 @router.get("/calendar/events", response_model=ApiResponse[list[dict[str, object]]])
-async def calendar_events(
+def calendar_events(
     time_min: str | None = None, time_max: str | None = None, query: str | None = None
 ) -> ApiResponse[list[dict[str, object]]]:
     return ApiResponse(
@@ -153,7 +153,7 @@ async def calendar_events(
     response_model=ApiResponse[dict[str, object]],
     status_code=status.HTTP_201_CREATED,
 )
-async def create_event(payload: CalendarEventCreate) -> ApiResponse[dict[str, object]]:
+def create_event(payload: CalendarEventCreate) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
         success=True,
         message="Calendar event created.",
@@ -164,7 +164,7 @@ async def create_event(payload: CalendarEventCreate) -> ApiResponse[dict[str, ob
 @router.put(
     "/calendar/events/{event_id}", response_model=ApiResponse[dict[str, object]]
 )
-async def update_event(
+def update_event(
     event_id: str, payload: CalendarEventUpdate
 ) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
@@ -175,13 +175,13 @@ async def update_event(
 
 
 @router.delete("/calendar/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_event(event_id: str) -> Response:
+def delete_event(event_id: str) -> Response:
     _service().delete_event(event_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/notion/pages/{page_id}", response_model=ApiResponse[dict[str, object]])
-async def notion_page(page_id: str) -> ApiResponse[dict[str, object]]:
+def notion_page(page_id: str) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
         success=True,
         message="Notion page loaded.",
@@ -190,7 +190,7 @@ async def notion_page(page_id: str) -> ApiResponse[dict[str, object]]:
 
 
 @router.get("/notion/search", response_model=ApiResponse[list[dict[str, object]]])
-async def notion_search(query: str) -> ApiResponse[list[dict[str, object]]]:
+def notion_search(query: str) -> ApiResponse[list[dict[str, object]]]:
     return ApiResponse(
         success=True,
         message="Notion pages loaded.",
@@ -203,7 +203,7 @@ async def notion_search(query: str) -> ApiResponse[list[dict[str, object]]]:
     response_model=ApiResponse[dict[str, object]],
     status_code=status.HTTP_201_CREATED,
 )
-async def notion_create(payload: NotionPageCreate) -> ApiResponse[dict[str, object]]:
+def notion_create(payload: NotionPageCreate) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
         success=True,
         message="Notion page created.",
@@ -216,7 +216,7 @@ async def notion_create(payload: NotionPageCreate) -> ApiResponse[dict[str, obje
     response_model=ApiResponse[dict[str, object]],
     status_code=status.HTTP_201_CREATED,
 )
-async def notion_meeting_notes(
+def notion_meeting_notes(
     payload: MeetingNotesCreate,
 ) -> ApiResponse[dict[str, object]]:
     """Create an organized Notion meeting-notes page."""
@@ -228,7 +228,7 @@ async def notion_meeting_notes(
 
 
 @router.patch("/notion/pages/{page_id}", response_model=ApiResponse[dict[str, object]])
-async def notion_update(
+def notion_update(
     page_id: str, payload: NotionPageUpdate
 ) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
@@ -254,14 +254,14 @@ async def drive_upload(
 
 
 @router.get("/drive/files", response_model=ApiResponse[list[dict[str, object]]])
-async def drive_search(query: str) -> ApiResponse[list[dict[str, object]]]:
+def drive_search(query: str) -> ApiResponse[list[dict[str, object]]]:
     return ApiResponse(
         success=True, message="Drive files loaded.", data=_service().drive_search(query)
     )
 
 
 @router.get("/drive/files/{file_id}/download")
-async def drive_download(file_id: str) -> Response:
+def drive_download(file_id: str) -> Response:
     return Response(
         content=_service().drive_download(file_id),
         media_type="application/octet-stream",
@@ -269,7 +269,7 @@ async def drive_download(file_id: str) -> Response:
 
 
 @router.get("/drive/folders", response_model=ApiResponse[list[dict[str, object]]])
-async def drive_folders() -> ApiResponse[list[dict[str, object]]]:
+def drive_folders() -> ApiResponse[list[dict[str, object]]]:
     return ApiResponse(
         success=True, message="Drive folders loaded.", data=_service().drive_folders()
     )
@@ -280,7 +280,7 @@ async def drive_folders() -> ApiResponse[list[dict[str, object]]]:
     response_model=ApiResponse[dict[str, object]],
     status_code=status.HTTP_201_CREATED,
 )
-async def drive_folder_create(
+def drive_folder_create(
     payload: DriveFolderCreate,
 ) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
@@ -293,7 +293,7 @@ async def drive_folder_create(
 @router.post(
     "/drive/files/{file_id}/move", response_model=ApiResponse[dict[str, object]]
 )
-async def drive_move(
+def drive_move(
     file_id: str, payload: DriveMoveRequest
 ) -> ApiResponse[dict[str, object]]:
     return ApiResponse(
@@ -304,6 +304,6 @@ async def drive_move(
 
 
 @router.delete("/drive/files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def drive_delete(file_id: str, confirmation: SendConfirmation) -> Response:
+def drive_delete(file_id: str, confirmation: SendConfirmation) -> Response:
     _service().drive_delete(file_id, confirmation.confirmed)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
