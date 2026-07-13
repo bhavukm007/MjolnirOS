@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
+import PluginManager from "./PluginManager.jsx";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
 const initialHealth = {
@@ -44,11 +46,7 @@ export default function App() {
   const [learningKind, setLearningKind] = useState("application");
   const [learningValue, setLearningValue] = useState("");
   const [learningError, setLearningError] = useState("");
-  const [marketplace, setMarketplace] = useState([]);
-  const [pluginCategories, setPluginCategories] = useState([]);
-  const [pluginSearch, setPluginSearch] = useState("");
-  const [pluginCategory, setPluginCategory] = useState("");
-  const [pluginError, setPluginError] = useState("");
+  const [activeView, setActiveView] = useState("dashboard");
 
   useEffect(() => {
     let active = true;
@@ -192,35 +190,6 @@ export default function App() {
     }
   }
 
-  async function loadMarketplace() {
-    try {
-      setPluginError("");
-      const query = new URLSearchParams();
-      if (pluginSearch.trim()) query.set("search", pluginSearch.trim());
-      if (pluginCategory) query.set("category", pluginCategory);
-      const suffix = query.size ? `?${query}` : "";
-      const [plugins, categories] = await Promise.all([
-        fetchJson(`/plugins/marketplace${suffix}`),
-        fetchJson("/plugins/categories")
-      ]);
-      setMarketplace(plugins);
-      setPluginCategories(categories);
-    } catch (error) {
-      setPluginError(error.message);
-    }
-  }
-
-  async function managePlugin(plugin, action) {
-    try {
-      setPluginError("");
-      const path = action === "uninstall" ? `/plugins/${plugin.manifest.id}` : `/plugins/${plugin.manifest.id}/${action}`;
-      await fetchJson(path, { method: action === "uninstall" ? "DELETE" : "POST" });
-      await loadMarketplace();
-    } catch (error) {
-      setPluginError(error.message);
-    }
-  }
-
   const moduleCount = useMemo(() => health.modules.length, [health.modules]);
 
   async function sendFile(path, file) {
@@ -299,6 +268,12 @@ export default function App() {
           </div>
         </header>
 
+        <nav aria-label="Application navigation" className="flex gap-2">
+          <button className={`rounded px-3 py-2 text-sm ${activeView === "dashboard" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("dashboard")} type="button">Dashboard</button>
+          <button className={`rounded px-3 py-2 text-sm ${activeView === "plugins" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("plugins")} type="button">Plugin Manager</button>
+        </nav>
+
+        {activeView === "dashboard" ? <>
         <section className="grid gap-4 md:grid-cols-4">
           <StatusTile label="Backend" value={health.status} />
           <StatusTile label="Environment" value={health.environment} />
@@ -373,8 +348,8 @@ export default function App() {
 
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
-          <PluginPanel marketplace={marketplace} categories={pluginCategories} search={pluginSearch} category={pluginCategory} error={pluginError} onSearchChange={setPluginSearch} onCategoryChange={setPluginCategory} onLoad={loadMarketplace} onManage={managePlugin} />
         </section>
+        </> : <PluginManager request={fetchJson} />}
       </section>
     </main>
   );

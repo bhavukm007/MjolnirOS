@@ -51,6 +51,7 @@ class AppSettings(BaseSettings):
     learning_suggestion_threshold: int = Field(default=3, ge=2, le=100)
     plugin_directory: Path = Field(default=Path("plugins"))
     plugin_catalog_file: Path = Field(default=Path("plugins/catalog.json"))
+    plugin_state_file: Path = Field(default=Path("database/plugins/state.json"))
     plugin_load_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
 
     def to_public_settings(self) -> PublicSettings:

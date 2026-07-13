@@ -30,5 +30,6 @@
   "learning_suggestion_threshold": 3,
   "plugin_directory": "plugins",
   "plugin_catalog_file": "plugins/catalog.json",
+  "plugin_state_file": "database/plugins/state.json",
   "plugin_load_timeout_seconds": 5
 }

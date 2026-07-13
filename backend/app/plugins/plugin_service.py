@@ -52,6 +52,7 @@ class PluginService:
         self._settings = settings
         self._directory = settings.plugin_directory
         self._catalog_file = settings.plugin_catalog_file
+        self._state_file = settings.plugin_state_file
 
     def list_plugins(
         self, search: str | None = None, category: str | None = None
@@ -141,6 +142,9 @@ class PluginService:
                 detail=f"Plugin is required by: {', '.join(dependents)}.",
             )
         shutil.rmtree(path)
+        states = self._states()
+        states.pop(plugin_id, None)
+        self._write_states(states)
         logger.info("plugin_uninstalled", extra={"plugin_id": plugin_id})
 
     def update(self, plugin_id: str) -> PluginRecord:
@@ -188,7 +192,19 @@ class PluginService:
             "plugin_loaded",
             extra={"plugin_id": plugin_id, "permissions": record.permissions},
         )
+        self._set_enabled(plugin_id, True)
         return record.model_copy(update={"status": PluginStatus.LOADED})
+
+    def disable(self, plugin_id: str) -> PluginRecord:
+        """Persistently disable a plugin without uninstalling its files."""
+        record = self._record(self._plugin_path(plugin_id))
+        if record.status is PluginStatus.BLOCKED:
+            raise HTTPException(
+                status_code=422, detail=record.blocked_reason or "Plugin is blocked."
+            )
+        self._set_enabled(plugin_id, False)
+        logger.info("plugin_disabled", extra={"plugin_id": plugin_id})
+        return record.model_copy(update={"status": PluginStatus.DISABLED})
 
     def _record(self, path: Path) -> PluginRecord:
         if not path.is_dir():
@@ -249,8 +265,35 @@ class PluginService:
                 blocked_reason=f"Unsatisfied dependencies: {', '.join(missing_dependencies)}.",
             )
         return PluginRecord(
-            manifest=manifest, permissions=permissions, status=PluginStatus.DISABLED
+            manifest=manifest,
+            permissions=permissions,
+            status=(
+                PluginStatus.LOADED
+                if self._states().get(manifest.id, False)
+                else PluginStatus.DISABLED
+            ),
         )
+
+    def _states(self) -> dict[str, bool]:
+        """Load enabled state without storing executable plugin data in the core."""
+        if not self._state_file.exists():
+            return {}
+        try:
+            loaded = json.loads(self._state_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise HTTPException(
+                status_code=500, detail="Plugin state storage is invalid."
+            ) from error
+        return {key: value for key, value in loaded.items() if isinstance(value, bool)}
+
+    def _set_enabled(self, plugin_id: str, enabled: bool) -> None:
+        states = self._states()
+        states[plugin_id] = enabled
+        self._write_states(states)
+
+    def _write_states(self, states: dict[str, bool]) -> None:
+        self._state_file.parent.mkdir(parents=True, exist_ok=True)
+        self._state_file.write_text(json.dumps(states, indent=2), encoding="utf-8")
 
     def _installed_manifests(
         self, exclude: str | None = None

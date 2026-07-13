@@ -69,6 +69,14 @@ async def load(plugin_id: str) -> ApiResponse[PluginRecord]:
     )
 
 
+@router.post("/{plugin_id}/disable", response_model=ApiResponse[PluginRecord])
+async def disable(plugin_id: str) -> ApiResponse[PluginRecord]:
+    """Disable a plugin while preserving it for later restart-free loading."""
+    return ApiResponse(
+        success=True, message="Plugin disabled.", data=_plugins().disable(plugin_id)
+    )
+
+
 @router.post("/{plugin_id}/update", response_model=ApiResponse[PluginRecord])
 async def update(plugin_id: str) -> ApiResponse[PluginRecord]:
     """Validate and reload the latest locally installed plugin version."""

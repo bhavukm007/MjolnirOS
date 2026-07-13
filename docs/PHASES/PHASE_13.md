@@ -92,6 +92,10 @@ Plugin loading.
 
 Plugin permissions.
 
+Plugin enable/disable state survives a service restart.
+
+Plugin Manager navigation, installed-plugin view, marketplace browsing, search, category filtering, and lifecycle actions.
+
 ---
 
 ## Commit

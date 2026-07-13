@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
 import App from "./App.jsx";
@@ -17,6 +17,12 @@ describe("App", () => {
           }
         : url.endsWith("/automation/workflows")
           ? []
+          : url.includes("/plugins/categories")
+            ? ["Utilities"]
+            : url.includes("/plugins/marketplace")
+              ? [{ manifest: { id: "calculator", name: "Calculator", version: "1.0.0", description: "Local calculations.", category: "Utilities" }, permissions: [], installed: true, update_available: false }]
+              : url.includes("/plugins")
+                ? [{ manifest: { id: "calculator", name: "Calculator", version: "1.0.0", description: "Local calculations.", category: "Utilities" }, permissions: [], status: "disabled", blocked_reason: null }]
           : {
             app_name: "MjolnirOS",
             environment: "test",
@@ -41,6 +47,15 @@ describe("App", () => {
     expect(screen.getByText("Vision Agent")).toBeInTheDocument();
     expect(screen.getByText("Automation & Planner")).toBeInTheDocument();
     expect(screen.getByText("Learning Mode")).toBeInTheDocument();
-    expect(screen.getByText("Plugin Marketplace")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Plugin Manager" }));
+    await waitFor(() => expect(screen.getByText("Installed plugins")).toBeInTheDocument());
+    expect(screen.getByText("Calculator")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load / Enable" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Marketplace" }));
+    expect(screen.getByText("Marketplace")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Load / Enable" }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/plugins/calculator/load"), { method: "POST" }));
   });
 });

@@ -39,6 +39,7 @@ htmlcov/
 database/documents/
 database/automation/
 database/learning/
+database/plugins/
 plugins/.defaults_seeded
 plugins/*/
 

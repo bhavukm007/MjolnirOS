@@ -10,6 +10,7 @@ def _client(tmp_path, monkeypatch) -> TestClient:
     settings = AppSettings(
         plugin_directory=tmp_path / "plugins",
         plugin_catalog_file=tmp_path / "catalog.json",
+        plugin_state_file=tmp_path / "plugin-state.json",
     )
     monkeypatch.setattr("backend.app.api.routes.plugins.get_settings", lambda: settings)
     return TestClient(create_app(settings))
@@ -34,6 +35,18 @@ def test_plugin_marketplace_install_load_update_and_uninstall(
     loaded = client.post("/api/v1/plugins/calculator/load")
     assert loaded.status_code == 200
     assert loaded.json()["data"]["status"] == "loaded"
+
+    disabled = client.post("/api/v1/plugins/calculator/disable")
+    assert disabled.status_code == 200
+    assert disabled.json()["data"]["status"] == "disabled"
+    assert (
+        next(
+            item
+            for item in client.get("/api/v1/plugins").json()["data"]
+            if item["manifest"]["id"] == "calculator"
+        )["status"]
+        == "disabled"
+    )
 
     updated = client.post("/api/v1/plugins/calculator/update")
     assert updated.status_code == 200

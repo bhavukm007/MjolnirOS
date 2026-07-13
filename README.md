@@ -36,6 +36,8 @@ Future capabilities such as cloud synchronization, mobile access, and enterprise
 
 Phase 13 provides a local-first plugin SDK. On first use, the Plugin Manager materializes the Spotify, Weather, Calculator, Clock, GitHub, and Docker plugins in `plugins/`. Each plugin has `manifest.json`, `permissions.json`, `plugin.py`, and `README.md`. The dashboard marketplace supports category browsing, search, loading, installation, updates, and uninstallation without a backend restart.
 
+Use the **Plugin Manager** navigation item to browse installed extensions or the local marketplace. Enabled state is persisted locally in `database/plugins/state.json`, so an enabled plugin remains enabled after restart; disabling keeps its files available for later activation.
+
 Plugins declare only the reviewed capabilities they need (`automation`, `browser`, `memory`, `network`, or `system`). The manager validates manifests and semantic-version dependencies before activation, then invokes the entry point in an isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
 
 ## Requirements
