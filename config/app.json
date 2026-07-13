@@ -19,7 +19,8 @@
     "automation",
     "planner",
     "learning",
-    "plugins"
+    "plugins",
+    "productivity"
   ],
   "vision_upload_directory": "database/documents",
   "vision_max_upload_bytes": 20000000,
