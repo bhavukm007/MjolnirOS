@@ -25,7 +25,19 @@ from backend.app.domain.plugin import (
 logger = logging.getLogger(__name__)
 
 _REQUIRED_FILES = ("manifest.json", "permissions.json", "plugin.py", "README.md")
-_ALLOWED_PERMISSIONS = {"automation", "browser", "memory", "network", "system"}
+_ALLOWED_PERMISSIONS = {
+    "automation",
+    "browser",
+    "memory",
+    "network",
+    "system",
+    "oauth",
+    "email",
+    "calendar",
+    "notion",
+    "drive",
+    "filesystem",
+}
 _DEFAULT_PLUGINS = (
     ("spotify", "Spotify", "Media", "Control Spotify through approved local actions."),
     (
@@ -43,7 +55,38 @@ _DEFAULT_PLUGINS = (
         "Development",
         "Extend the existing Development Agent safely.",
     ),
+    (
+        "gmail",
+        "Gmail",
+        "Productivity",
+        "Read, search, and draft email through explicit OAuth consent.",
+    ),
+    (
+        "google-calendar",
+        "Google Calendar",
+        "Productivity",
+        "Manage Google Calendar events with conflict detection.",
+    ),
+    (
+        "notion",
+        "Notion",
+        "Productivity",
+        "Search and organize Notion pages through OAuth.",
+    ),
+    (
+        "google-drive",
+        "Google Drive",
+        "Productivity",
+        "Manage Drive files and folders with confirmation-gated deletion.",
+    ),
 )
+
+_DEFAULT_PERMISSION_MAP = {
+    "gmail": ["oauth", "network", "email"],
+    "google-calendar": ["oauth", "network", "calendar"],
+    "notion": ["oauth", "network", "notion"],
+    "google-drive": ["oauth", "network", "drive", "filesystem"],
+}
 
 
 class PluginService:
@@ -456,7 +499,10 @@ class PluginService:
             json.dumps(manifest, indent=2), encoding="utf-8"
         )
         (path / "permissions.json").write_text(
-            json.dumps({"permissions": []}, indent=2), encoding="utf-8"
+            json.dumps(
+                {"permissions": _DEFAULT_PERMISSION_MAP.get(plugin_id, [])}, indent=2
+            ),
+            encoding="utf-8",
         )
         (path / "plugin.py").write_text(
             '"""MjolnirOS plugin entry point."""\n\ndef activate() -> str:\n    """Confirm the plugin loaded in the isolated runtime."""\n    return "ready"\n',

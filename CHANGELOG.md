@@ -2,6 +2,16 @@
 
 All notable changes to MjolnirOS will be documented in this file.
 
+## [0.14.0] - 2026-07-13
+
+### Added
+
+- Added process-isolated Gmail, Google Calendar, Notion, and Google Drive productivity plugins with manifests, semantic versions, and reviewed permissions.
+- Added OAuth authorization, secure Windows DPAPI token storage, state validation, provider connection status, and Google token refresh.
+- Added Gmail inbox/search/summary/draft/reply APIs, with explicit confirmation required for every send.
+- Added Calendar event search, timezone-aware creation, updating, deletion, and conflict detection; Notion page/search APIs; and Drive file/folder operations with confirmation-gated deletion.
+- Added the Productivity management dashboard for connection state, account display, manual sync, errors, and health indicators.
+
 ## [0.13.0] - 2026-07-12
 
 ### Added

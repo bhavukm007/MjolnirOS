@@ -21,8 +21,10 @@ describe("App", () => {
             ? ["Utilities"]
             : url.includes("/plugins/marketplace")
               ? [{ manifest: { id: "calculator", name: "Calculator", version: "1.0.0", description: "Local calculations.", category: "Utilities" }, permissions: [], installed: true, update_available: false }]
-              : url.includes("/plugins")
-                ? [{ manifest: { id: "calculator", name: "Calculator", version: "1.0.0", description: "Local calculations.", category: "Utilities" }, permissions: [], status: "disabled", blocked_reason: null }]
+          : url.includes("/plugins")
+            ? [{ manifest: { id: "calculator", name: "Calculator", version: "1.0.0", description: "Local calculations.", category: "Utilities" }, permissions: [], status: "disabled", blocked_reason: null }]
+            : url.includes("/productivity/connections")
+              ? [{ provider: "google", connected: true, account_email: "user@example.com", expires_at: null, last_sync_at: null, error: null }, { provider: "notion", connected: false, account_email: null, expires_at: null, last_sync_at: null, error: null }]
           : {
             app_name: "MjolnirOS",
             environment: "test",
@@ -57,5 +59,10 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Load / Enable" }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/plugins/calculator/load"), { method: "POST" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Productivity" }));
+    await waitFor(() => expect(screen.getByText("Productivity Plugins")).toBeInTheDocument());
+    expect(screen.getByText("Connected: user@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sync" })).toBeInTheDocument();
   });
 });

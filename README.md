@@ -17,6 +17,7 @@ MjolnirOS is a local-first Windows desktop operating assistant built with FastAP
 - Automation Engine & Planner with built-in routines, saved custom workflows, visible dependency-aware progress, cancellation, and local goal decomposition.
 - Learning Mode with local habit observations, inferred preferences, and user-approved automation recommendations.
 - Plugin Manager with a local marketplace, manifest validation, dependency checks, permission declarations, and restart-free isolated loading.
+- Productivity plugins for Gmail, Google Calendar, Notion, and Google Drive with OAuth connections, provider health, and manual sync controls.
 
 ## Learning Mode
 
@@ -41,6 +42,12 @@ Use the **Plugin Manager** navigation item to browse installed extensions or the
 Plugins declare only the reviewed capabilities they need (`automation`, `browser`, `memory`, `network`, or `system`). The manager validates manifests, semantic-version dependencies, and dependency cycles before activation, then invokes the entry point in a separate isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
 
 ## Requirements
+
+## Productivity plugin setup
+
+Gmail, Google Calendar, Google Drive, and Notion are independent Phase 14 plugins. Add OAuth client credentials to a local `.env` file using the names in `.env.example`; do not commit those values. Register the loopback redirect URIs with Google and Notion, start MjolnirOS, then open **Productivity** and select **Connect**. OAuth tokens are protected with the current Windows user's DPAPI key in `database/productivity/` and are never returned through the API or shown in the UI.
+
+Google uses Gmail modify, Calendar, and Drive scopes only. Sending a Gmail draft and deleting a Drive file each require `{"confirmed": true}` on that operation; drafts are never sent automatically. Calendar creation checks the requested time window for conflicts before creating an event.
 
 - Python 3.12+
 - Node.js 20+

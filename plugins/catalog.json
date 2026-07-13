@@ -5,6 +5,10 @@
     {"id": "calculator", "name": "Calculator", "version": "1.0.0", "description": "Perform local calculator operations.", "category": "Utilities"},
     {"id": "clock", "name": "Clock", "version": "1.0.0", "description": "Show local time and timers.", "category": "Utilities"},
     {"id": "github", "name": "GitHub", "version": "1.0.0", "description": "Extend the existing GitHub Agent safely.", "category": "Development"},
-    {"id": "docker", "name": "Docker", "version": "1.0.0", "description": "Extend the existing Development Agent safely.", "category": "Development"}
+    {"id": "docker", "name": "Docker", "version": "1.0.0", "description": "Extend the existing Development Agent safely.", "category": "Development"},
+    {"id": "gmail", "name": "Gmail", "version": "1.0.0", "description": "Read, search, and draft email through explicit OAuth consent.", "category": "Productivity"},
+    {"id": "google-calendar", "name": "Google Calendar", "version": "1.0.0", "description": "Manage Google Calendar events with conflict detection.", "category": "Productivity"},
+    {"id": "notion", "name": "Notion", "version": "1.0.0", "description": "Search and organize Notion pages through OAuth.", "category": "Productivity"},
+    {"id": "google-drive", "name": "Google Drive", "version": "1.0.0", "description": "Manage Drive files and folders with confirmation-gated deletion.", "category": "Productivity"}
   ]
 }

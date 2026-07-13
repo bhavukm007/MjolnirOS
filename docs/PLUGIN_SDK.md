@@ -79,6 +79,10 @@ Plugins must
 - Use documented APIs
 - Request permissions
 
+## Productivity plugin permissions
+
+Phase 14 adds `oauth`, `email`, `calendar`, `notion`, `drive`, and `filesystem` declarations. Productivity plugins remain isolated entry-point packages; only the core API service handles OAuth tokens. Gmail transmission and Drive deletion require a fresh explicit confirmation and write audit events without credentials or token data.
+
 ---
 
 # Default Plugins

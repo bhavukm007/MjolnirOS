@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import PluginManager from "./PluginManager.jsx";
+import ProductivityPlugins from "./ProductivityPlugins.jsx";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
@@ -271,6 +272,7 @@ export default function App() {
         <nav aria-label="Application navigation" className="flex gap-2">
           <button className={`rounded px-3 py-2 text-sm ${activeView === "dashboard" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("dashboard")} type="button">Dashboard</button>
           <button className={`rounded px-3 py-2 text-sm ${activeView === "plugins" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("plugins")} type="button">Plugin Manager</button>
+          <button className={`rounded px-3 py-2 text-sm ${activeView === "productivity" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("productivity")} type="button">Productivity</button>
         </nav>
 
         {activeView === "dashboard" ? <>
@@ -349,7 +351,7 @@ export default function App() {
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
         </section>
-        </> : <PluginManager request={fetchJson} />}
+        </> : activeView === "plugins" ? <PluginManager request={fetchJson} /> : <ProductivityPlugins request={fetchJson} />}
       </section>
     </main>
   );

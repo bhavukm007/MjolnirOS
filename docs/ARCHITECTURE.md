@@ -634,3 +634,7 @@ No circular dependencies.
 Follow Clean Architecture.
 
 This document is the official architecture reference for MjolnirOS.
+
+## Phase 14 implementation
+
+Productivity integrations are implemented behind `backend/app/productivity` and the `/productivity` API boundary. Provider-facing OAuth and HTTP work is centralized there so process-isolated plugin packages never receive or persist credentials. The dashboard only receives safe connection metadata. Windows DPAPI protects local OAuth token storage, while confirmation-gated Gmail sending and Drive deletion preserve the Permission Manager boundary.

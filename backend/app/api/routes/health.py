@@ -21,4 +21,6 @@ async def get_health() -> ApiResponse[HealthStatus]:
         default_model=settings.default_model,
         modules=settings.enabled_foundation_modules,
     )
-    return ApiResponse(success=True, message="MjolnirOS backend is healthy.", data=status)
+    return ApiResponse(
+        success=True, message="MjolnirOS backend is healthy.", data=status
+    )
