@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
 import os
@@ -21,6 +22,28 @@ from backend.app.domain.browser import BrowserActionRequest, BrowserActionResult
 
 
 _EXECUTABLE_SUFFIXES = {".exe", ".msi", ".bat", ".cmd", ".com", ".ps1", ".scr"}
+
+
+@dataclass(frozen=True)
+class BrowserLaunchOptions:
+    """One centralized native browser/profile launch specification."""
+
+    browser: BrowserName
+    executable: str
+    user_data_dir: Path | None = None
+    profile_directory: str | None = None
+    incognito: bool = False
+
+    def command(self, url: str) -> list[str]:
+        command = [self.executable]
+        if self.user_data_dir is not None:
+            command.append(f"--user-data-dir={self.user_data_dir}")
+        if self.profile_directory:
+            command.append(f"--profile-directory={self.profile_directory}")
+        if self.incognito:
+            command.append("--incognito")
+        command.append(url)
+        return command
 
 
 class BrowserController:
@@ -44,7 +67,12 @@ class BrowserController:
                 message="Confirmation is required before this browser action.",
                 confirmation_required=True,
             )
+        native_navigation = request.action in {"open", "search"}
         try:
+            # Ordinary navigation belongs in the user's real browser profile.
+            # Playwright contexts remain reserved for explicit automation.
+            if native_navigation:
+                return await asyncio.to_thread(self._native_open, request)
             return await self._execute(request)
         except NotImplementedError:
             # Uvicorn reload workers use a Windows selector event loop, which
@@ -71,7 +99,7 @@ class BrowserController:
                 isinstance(error, PlaywrightError)
                 and "launch_persistent_context" in str(error)
             )
-            if request.action in {"open", "search"} and launch_failed:
+            if request.action in {"open", "search"} and launch_failed and not native_navigation:
                 return await asyncio.to_thread(self._native_open, request)
             return BrowserActionResult(
                 success=False,
@@ -93,24 +121,25 @@ class BrowserController:
             url = self._required_url(request)
 
         requested_browser = request.browser
-        resolved_browser = requested_browser
-        executable = None
-        if requested_browser != "system":
-            executable = self._browser_executable(requested_browser)
+        launch_options = self._browser_launch_options(requested_browser)
+        resolved_browser = launch_options.browser
         self._logger.info(
             "browser_native_navigation_start",
-            extra={"browser": resolved_browser, "url": url, "executable": executable},
+            extra={
+                "browser": resolved_browser,
+                "url": url,
+                "executable": launch_options.executable,
+                "profile_directory": launch_options.profile_directory,
+                "user_data_dir": str(launch_options.user_data_dir) if launch_options.user_data_dir else None,
+                "incognito": launch_options.incognito,
+            },
         )
-        if requested_browser == "system":
-            os.startfile(url)
-            process_id = None
-        else:
-            process = subprocess.Popen(
-                [executable, url],
-                close_fds=True,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
-            process_id = process.pid
+        process = subprocess.Popen(
+            launch_options.command(url),
+            close_fds=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        process_id = process.pid
         label = request.target_label or "website"
         self._logger.info(
             "browser_native_navigation_started",
@@ -128,7 +157,30 @@ class BrowserController:
                 "url": url,
                 "process_id": process_id,
                 "navigation_driver": "native",
+                "profile_directory": launch_options.profile_directory,
             },
+        )
+
+    def _browser_launch_options(self, requested_browser: BrowserName) -> BrowserLaunchOptions:
+        """Resolve browser identity and profile without involving routing."""
+        browser = (
+            self._system_default_browser()
+            if requested_browser == "system"
+            else requested_browser
+        )
+        executable = self._browser_executable(browser)
+        if browser == "chrome":
+            return BrowserLaunchOptions(
+                browser="chrome",
+                executable=executable,
+                user_data_dir=self._settings.browser_chrome_user_data_path,
+                profile_directory=self._settings.browser_chrome_profile_directory,
+                incognito=self._settings.browser_incognito,
+            )
+        return BrowserLaunchOptions(
+            browser=browser,
+            executable=executable,
+            incognito=self._settings.browser_incognito,
         )
 
     @staticmethod

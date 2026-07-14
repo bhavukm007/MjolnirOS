@@ -23,6 +23,7 @@ class Capability(StrEnum):
     CODING = "coding"
     GITHUB = "github"
     GREETING = "greeting"
+    APPLICATION_NOT_FOUND = "application_not_found"
     LLM = "llm"
 
 
@@ -101,8 +102,20 @@ def _live_information(routed: RoutedIntent) -> bool | None:
 class CapabilityRouter:
     """Select the first matching capability from an ordered rule registry."""
 
-    def __init__(self, rules: tuple[CapabilityRule, ...] | None = None) -> None:
-        self.rules = rules or self._default_rules()
+    def __init__(
+        self,
+        rules: tuple[CapabilityRule, ...] | None = None,
+        application_resolver: Callable[[str], Any | None] | None = None,
+    ) -> None:
+        if rules is not None:
+            self.rules = rules
+            return
+        if application_resolver is None:
+            from backend.app.core.settings import get_settings
+            from backend.app.windows.controller import WindowsController
+
+            application_resolver = WindowsController(get_settings()).resolve_application
+        self.rules = self._default_rules(application_resolver)
 
     def route(self, routed: RoutedIntent, context: RoutingContext | None = None) -> CapabilityDecision:
         active_context = context or RoutingContext()
@@ -120,7 +133,9 @@ class CapabilityRouter:
         )
 
     @staticmethod
-    def _default_rules() -> tuple[CapabilityRule, ...]:
+    def _default_rules(
+        application_resolver: Callable[[str], Any | None],
+    ) -> tuple[CapabilityRule, ...]:
         # Imports are local so optional agents do not create router import cycles.
         from backend.app.coding.ai_natural_language import parse_ai_coding_command
         from backend.app.coding.build_natural_language import parse_build_command
@@ -129,9 +144,27 @@ class CapabilityRouter:
 
         def intent(*values: Intent) -> Callable[[RoutedIntent], str | None]:
             return lambda routed: routed.message if routed.intent in values else None
+
+        def installed_application(routed: RoutedIntent) -> Any | None:
+            command = parse_windows_command(routed.message)
+            if command is None or command.action != "open_application":
+                return None
+            name = command.parameters["name"]
+            return command if application_resolver(name) is not None else None
+
+        def non_application_windows_action(routed: RoutedIntent) -> Any | None:
+            command = parse_windows_command(routed.message)
+            return command if command is not None and command.action != "open_application" else None
+
+        def unresolved_application(routed: RoutedIntent) -> Any | None:
+            command = parse_windows_command(routed.message)
+            return command if command is not None and command.action == "open_application" else None
+
         return (
+            MatcherRule("windows_controller", installed_application, Capability.WINDOWS, "Resolved an installed Windows application."),
             MatcherRule("browser_controller", lambda routed: parse_browser_command(routed.message), Capability.BROWSER, "Recognized browser navigation or browser action."),
-            MatcherRule("windows_controller", lambda routed: parse_windows_command(routed.message), Capability.WINDOWS, "Recognized Windows application or system action."),
+            MatcherRule("windows_controller", non_application_windows_action, Capability.WINDOWS, "Recognized Windows system action."),
+            MatcherRule("application_not_found", unresolved_application, Capability.APPLICATION_NOT_FOUND, "No installed application or known website matched."),
             MatcherRule("live_information", _live_information, Capability.LIVE_INFORMATION, "Request requires current external information.", CapabilityStatus.NOT_IMPLEMENTED),
             MatcherRule("memory_service", IntentMatcher({Intent.MEMORY_QUERY, Intent.MEMORY_WRITE, Intent.MEMORY_FORGET, Intent.REMINDER}), Capability.MEMORY, "Recognized memory operation."),
             MatcherRule("build_controller", lambda routed: parse_build_command(routed.message), Capability.BUILD, "Recognized build action."),

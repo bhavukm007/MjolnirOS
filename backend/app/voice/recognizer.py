@@ -13,6 +13,7 @@ from backend.app.domain.voice import RecognitionResult, VoiceSession, VoiceState
 from backend.app.voice.wake_word import WakeWordDetector
 from backend.app.voice.runtime_logger import logger as voice_logger
 from backend.app.voice.runtime_logger import state as log_voice_state
+from backend.app.voice.speech_normalizer import SpeechNormalizer
 
 
 class VoiceUnavailableError(RuntimeError):
@@ -28,10 +29,12 @@ class VoskRecognitionSession:
         wake_word_detector: WakeWordDetector,
         command_timeout_seconds: float = 10.0,
         wake_recognizer: object | None = None,
+        speech_normalizer: SpeechNormalizer | None = None,
     ) -> None:
         self._recognizer = recognizer
         self._wake_word_detector = wake_word_detector
         self._wake_recognizer = wake_recognizer
+        self._speech_normalizer = speech_normalizer or SpeechNormalizer()
         self._pending_wake_transcript = ""
         self._state = VoiceState.LISTENING_FOR_WAKE_WORD
         self._packet_count = 0
@@ -149,7 +152,7 @@ class VoskRecognitionSession:
         if self._state is VoiceState.LISTENING_FOR_WAKE_WORD:
             detected, command = self._wake_word_detector.extract(transcript)
             raw_command = command
-            command = _normalize_command_transcript(command)
+            command = self._speech_normalizer.normalize(command)
             if command != raw_command:
                 voice_logger.info(
                     "voice_command_stt_corrected",
@@ -187,7 +190,7 @@ class VoskRecognitionSession:
                 command=command or None,
             )
         raw_transcript = transcript
-        transcript = _normalize_command_transcript(transcript)
+        transcript = self._speech_normalizer.normalize(transcript)
         if transcript != raw_transcript:
             voice_logger.info(
                 "voice_command_stt_corrected",
@@ -378,8 +381,3 @@ def _extract_partial(result: str) -> str:
 
 def _without_unknown(transcript: str) -> str:
     return transcript.replace("[unk]", " ").strip()
-
-
-def _normalize_command_transcript(transcript: str) -> str:
-    """Correct high-confidence Vosk verb inflections at command boundaries."""
-    return re.sub(r"^(?:opened|opening)\s+", "open ", transcript.strip(), flags=re.I)

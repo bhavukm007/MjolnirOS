@@ -80,6 +80,61 @@ def test_camera_uses_same_store_app_id_resolution() -> None:
     ]
 
 
+def test_application_resolution_discovers_unlisted_start_menu_app() -> None:
+    controller = WindowsController(SimpleNamespace())
+
+    with (
+        patch("backend.app.windows.controller.shutil.which", return_value=None),
+        patch.object(controller, "_windows_store_app_id", return_value="Spotify.Package!App") as lookup,
+    ):
+        resolution = controller.resolve_application("Spotify")
+
+    assert resolution is not None
+    assert resolution.command == (
+        "explorer.exe",
+        "shell:AppsFolder\\Spotify.Package!App",
+    )
+    assert resolution.source == "windows_start_apps"
+    lookup.assert_called_once_with("Spotify")
+
+
+def test_application_resolution_does_not_launch_during_discovery() -> None:
+    controller = WindowsController(SimpleNamespace())
+
+    with (
+        patch("backend.app.windows.controller.shutil.which", return_value=None),
+        patch.object(controller, "_windows_store_app_id", return_value=None),
+        patch("backend.app.windows.controller.subprocess.Popen") as popen,
+    ):
+        assert controller.resolve_application("UnknownApplicationXYZ") is None
+
+    popen.assert_not_called()
+
+
+def test_start_apps_lookup_uses_exact_display_name_matching() -> None:
+    controller = WindowsController(SimpleNamespace())
+
+    with patch("backend.app.windows.controller.subprocess.run") as run:
+        run.return_value.stdout = ""
+        run.return_value.returncode = 0
+        controller._windows_store_app_id("Steam")
+
+    script = run.call_args.args[0][-1]
+    assert "Where-Object {$_.Name -ieq $name}" in script
+    assert "-like \"*$name*\"" not in script
+
+
+def test_browser_installed_pwa_is_not_treated_as_windows_application() -> None:
+    controller = WindowsController(SimpleNamespace())
+
+    with patch("backend.app.windows.controller.subprocess.run") as run:
+        run.return_value.stdout = "Chrome._crx_youtube\n"
+        run.return_value.returncode = 0
+        app_id = controller._windows_store_app_id("YouTube")
+
+    assert app_id is None
+
+
 def test_paint_falls_back_to_windows_store_app_id_when_legacy_executable_is_absent() -> None:
     controller = WindowsController(SimpleNamespace())
 

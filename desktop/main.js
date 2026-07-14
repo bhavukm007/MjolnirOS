@@ -6,11 +6,16 @@ const path = require("node:path");
 
 const FRONTEND_URL = process.env.MJOLNIROS_FRONTEND_URL || "http://localhost:5173";
 const BACKEND_HEALTH_URL = "http://127.0.0.1:8000/api/v1/health";
+const VOICE_SHUTDOWN_TIMEOUT_MS = 5000;
+const APP_ICON_PATH = path.join(__dirname, "..", "assets", "branding", "mjolnir.ico");
+const TRAY_ICON_PATH = path.join(__dirname, "..", "assets", "branding", "mjolnir-tray-24.png");
 let mainWindow;
 let tray;
 let minimizeToTray = true;
 let backendProcess;
 let ownsBackend = false;
+let quitPrepared = false;
+let quitPreparation;
 const ownsApplicationInstance = app.requestSingleInstanceLock();
 
 app.disableHardwareAcceleration();
@@ -25,6 +30,7 @@ const runtimeDataPath = path.join(__dirname, "..", "database", "electron-runtime
 fs.mkdirSync(runtimeDataPath, { recursive: true });
 app.setPath("userData", runtimeDataPath);
 app.setPath("sessionData", path.join(runtimeDataPath, "session"));
+app.setAppUserModelId("com.mjolniros.desktop");
 
 function isSmokeMode() {
   return process.argv.includes("--smoke");
@@ -38,10 +44,14 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: "#090b10",
     title: "MjolnirOS",
+    icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Wake-word capture is an application service. Chromium must not
+      // throttle its ScriptProcessor while this window is hidden in the tray.
+      backgroundThrottling: false
     }
   });
 
@@ -60,7 +70,7 @@ function createWindow() {
 }
 
 function createTray() {
-  const icon = nativeImage.createFromDataURL("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLJXQAAAABJRU5ErkJggg==");
+  const icon = nativeImage.createFromPath(TRAY_ICON_PATH);
   tray = new Tray(icon);
   tray.setToolTip("MjolnirOS");
   tray.setContextMenu(Menu.buildFromTemplate([
@@ -161,6 +171,37 @@ function stopBackend() {
   if (ownsBackend && backendProcess && !backendProcess.killed) backendProcess.kill();
 }
 
+async function stopVoiceRuntime() {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
+  const shutdown = mainWindow.webContents.executeJavaScript(
+    "window.__mjolnirVoiceRuntime?.stop()",
+    true
+  );
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("Voice runtime shutdown timed out.")), VOICE_SHUTDOWN_TIMEOUT_MS);
+  });
+  try {
+    await Promise.race([shutdown, timeout]);
+    console.log("[voice] Renderer microphone resources released before quit.");
+  } catch (error) {
+    console.error(`[voice] Graceful renderer shutdown failed: ${error.message}`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function prepareApplicationQuit() {
+  if (quitPreparation) return quitPreparation;
+  quitPreparation = (async () => {
+    await stopVoiceRuntime();
+    stopBackend();
+    quitPrepared = true;
+    app.quit();
+  })();
+  return quitPreparation;
+}
+
 function applyDesktopSettings(settings) {
   if (!settings || typeof settings !== "object") return;
   minimizeToTray = settings.minimize_to_tray !== false;
@@ -222,4 +263,12 @@ app.on("window-all-closed", () => {
   // The tray owns the background runtime; Quit is always explicit.
 });
 
-app.on("before-quit", stopBackend);
+app.on("before-quit", (event) => {
+  app.isQuitting = true;
+  if (!quitPrepared) {
+    event.preventDefault();
+    void prepareApplicationQuit();
+    return;
+  }
+  stopBackend();
+});
