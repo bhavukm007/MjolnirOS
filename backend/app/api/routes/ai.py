@@ -15,23 +15,19 @@ from backend.app.api.routes.memory import get_memory_store
 from backend.app.memory.service import MemoryService
 from backend.app.memory.context_engine import ContextEngine
 from backend.app.ai.intent_router import Intent, IntentRouter
+from backend.app.ai.capability_router import Capability, CapabilityDecision, CapabilityRouter
 from backend.app.api.routes.windows import get_windows_controller
 from backend.app.api.routes.browser import get_browser_controller
-from backend.app.browser.natural_language import parse_browser_command
-from backend.app.windows.natural_language import execute_natural_command
 from backend.app.api.routes.github import get_github_controller
-from backend.app.github.natural_language import parse_github_command
 from backend.app.api.routes.coding import get_coding_controller
-from backend.app.coding.natural_language import parse_coding_command
 from backend.app.api.routes.coding_ai import get_ai_coding_controller
-from backend.app.coding.ai_natural_language import parse_ai_coding_command
 from backend.app.api.routes.build import get_build_controller
-from backend.app.coding.build_natural_language import parse_build_command
 from backend.app.automation.automation_service import AutomationService
 from backend.app.automation.planner_service import PlannerService
 
 router = APIRouter(tags=["ai"])
 logger = logging.getLogger(__name__)
+capability_router = CapabilityRouter()
 
 
 def get_ollama_client() -> OllamaClient:
@@ -96,55 +92,53 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     memory = MemoryService(get_memory_store())
     routed = IntentRouter(settings.voice_wake_word).classify(request.message)
     message = routed.message
-    logger.info("intent_routed", extra={"intent": routed.intent.value, "confidence": routed.confidence})
+    decision = capability_router.route(routed)
+    logger.info(
+        "capability_routed",
+        extra={"intent": routed.intent.value, **decision.event_data()},
+    )
 
-    if routed.intent in {Intent.MEMORY_QUERY, Intent.MEMORY_WRITE, Intent.MEMORY_FORGET, Intent.REMINDER}:
+    if decision.capability is Capability.LIVE_INFORMATION:
+        return _capability_not_implemented(memory, message, decision)
+    if decision.capability is Capability.MEMORY:
         response = memory.handle_command(message)
         if response:
-            return _direct_response(memory, message, response)
-    if routed.intent is Intent.GREETING:
+            return _direct_response(memory, message, response, decision)
+    if decision.capability is Capability.GREETING:
         response = "What's up, Boss?" if "up" in message.lower() else "Hello, Boss. How can I help?"
-        return _direct_response(memory, message, response)
+        return _direct_response(memory, message, response, decision)
 
-    # Deterministic local tools run before any generative planner.
-    # Website-shaped open commands must be decomposed before generic app launch.
-    browser_request = parse_browser_command(message)
-    if browser_request is not None:
-        browser_result = await get_browser_controller().execute(browser_request)
-        return _direct_response(memory, message, browser_result.message)
-    action_result = execute_natural_command(message, get_windows_controller())
-    if action_result is not None:
+    if decision.capability is Capability.BROWSER:
+        browser_result = await get_browser_controller().execute(decision.payload)
+        return _direct_response(memory, message, browser_result.message, decision)
+    if decision.capability is Capability.WINDOWS:
+        action_result = get_windows_controller().execute(
+            decision.payload.action, decision.payload.parameters, False
+        )
         if action_result.success and routed.intent is Intent.APPLICATION_LAUNCH:
             data = action_result.data or {}
             memory.remember_installed_application(
                 message[5:].strip() if message.lower().startswith("open ") else message,
                 str(data.get("resolved_executable_path")) if data.get("resolved_executable_path") else None,
             )
-        return _direct_response(memory, message, action_result.message)
-    build_request = parse_build_command(message)
-    if build_request is not None:
-        build_result = get_build_controller().execute(build_request)
-        async def build_events() -> AsyncIterator[str]:
-            yield _event("token", content=build_result.message)
-            yield _event("done")
-        return _direct_response(memory, message, build_result.message)
-    ai_coding_request = parse_ai_coding_command(message)
-    if ai_coding_request is not None:
-        ai_coding_request.model = model
-        ai_coding_result = await get_ai_coding_controller().execute(ai_coding_request)
-        return _direct_response(memory, message, ai_coding_result.data.get("response", ai_coding_result.message))
-    coding_request = parse_coding_command(message)
-    if coding_request is not None:
-        coding_result = get_coding_controller().execute(coding_request)
-        return _direct_response(memory, message, coding_result.message)
-    github_request = parse_github_command(message)
-    if github_request is not None:
-        github_result = await get_github_controller().execute(github_request)
-        return _direct_response(memory, message, github_result.message)
-    if routed.intent is Intent.AUTOMATION:
+        return _direct_response(memory, message, action_result.message, decision)
+    if decision.capability is Capability.BUILD:
+        build_result = get_build_controller().execute(decision.payload)
+        return _direct_response(memory, message, build_result.message, decision)
+    if decision.capability is Capability.AI_CODING:
+        decision.payload.model = model
+        ai_coding_result = await get_ai_coding_controller().execute(decision.payload)
+        return _direct_response(memory, message, ai_coding_result.data.get("response", ai_coding_result.message), decision)
+    if decision.capability is Capability.CODING:
+        coding_result = get_coding_controller().execute(decision.payload)
+        return _direct_response(memory, message, coding_result.message, decision)
+    if decision.capability is Capability.GITHUB:
+        github_result = await get_github_controller().execute(decision.payload)
+        return _direct_response(memory, message, github_result.message, decision)
+    if decision.capability is Capability.PLANNER:
         planned_result = await PlannerService(AutomationService(settings)).execute_goal(message)
         if planned_result is not None:
-            return _direct_response(memory, message, planned_result)
+            return _direct_response(memory, message, planned_result, decision)
 
     context_engine = ContextEngine(get_memory_store())
     system_prompt = context_engine.prompt(message)
@@ -155,6 +149,7 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     async def events() -> AsyncIterator[str]:
         reply = ""
         try:
+            yield _event("routing_decision", **decision.event_data())
             async for content in get_ollama_client().stream_chat(model, history, message, system_prompt):
                 if content:
                     reply += content
@@ -169,18 +164,43 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     return StreamingResponse(events(), media_type="application/x-ndjson")
 
 
-def _direct_response(memory: MemoryService, message: str, response: str) -> StreamingResponse:
+def _direct_response(
+    memory: MemoryService, message: str, response: str, decision: CapabilityDecision
+) -> StreamingResponse:
     """Return a local answer while preserving bounded conversation continuity."""
     memory.record_conversation("user", message)
     memory.record_conversation("assistant", response)
 
     async def events() -> AsyncIterator[str]:
+        yield _event("routing_decision", **decision.event_data())
         yield _event("token", content=response)
         yield _event("done")
 
     return StreamingResponse(events(), media_type="application/x-ndjson")
 
 
-def _event(event_type: str, **payload: str) -> str:
+def _capability_not_implemented(
+    memory: MemoryService, message: str, decision: CapabilityDecision
+) -> StreamingResponse:
+    response = "Capability Not Yet Implemented: live information is recognized but has no provider configured."
+    memory.record_conversation("user", message)
+    memory.record_conversation("assistant", response)
+
+    async def events() -> AsyncIterator[str]:
+        yield _event("routing_decision", **decision.event_data())
+        yield _event(
+            "capability_result",
+            success=False,
+            code="CAPABILITY_NOT_YET_IMPLEMENTED",
+            capability=decision.capability.value,
+            message=response,
+        )
+        yield _event("token", content=response)
+        yield _event("done")
+
+    return StreamingResponse(events(), media_type="application/x-ndjson")
+
+
+def _event(event_type: str, **payload: object) -> str:
     """Serialize a single newline-delimited stream event."""
     return f"{json.dumps({'type': event_type, **payload}, ensure_ascii=True)}\n"
