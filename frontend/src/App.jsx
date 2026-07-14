@@ -493,6 +493,7 @@ function AssistantConsole() {
   const [state, setState] = useState("Voice checking");
   const [listening, setListening] = useState(false);
   const runtime = useRef(null);
+  const speechRequest = useRef(0);
   useEffect(() => {
     let active = true;
     const voice = createVoiceRuntime();
@@ -541,6 +542,7 @@ function AssistantConsole() {
       {
         onVoicePhase?.("TOOL_COMPLETION", { response_length: addressedAnswer.length });
         onVoicePhase?.("TTS_START", { utterance: "command_response" });
+        const requestId = ++speechRequest.current;
         runtime.current?.beginPlayback("assistant_reply_tts");
         try {
           const spokenText = addressedAnswer;
@@ -551,7 +553,7 @@ function AssistantConsole() {
           }
         } catch (error) {
           onVoicePhase?.("TTS_FAILURE", { error: error.message });
-          setState(`Speech failed: ${error.message}`);
+          if (requestId === speechRequest.current) setState(`Speech failed: ${error.message}`);
           // Speech is an output channel, not the source of the answer. Keep
           // the successfully generated chat response visible if audio fails.
         } finally {

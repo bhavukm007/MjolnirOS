@@ -5,6 +5,28 @@ import { VoiceRuntime } from "./voice_runtime.js";
 const samples = () => new Float32Array(256);
 
 describe("VoiceRuntime", () => {
+  test("keeps microphone capture paused until overlapping playback completes", () => {
+    const runtime = new VoiceRuntime({
+      apiBaseUrl: "/api/v1",
+      onCommand: vi.fn(),
+      onWake: vi.fn(),
+      onState: vi.fn(),
+      onInterruption: vi.fn()
+    });
+
+    runtime.beginPlayback("first");
+    runtime.beginPlayback("second");
+    runtime.endPlayback("first_complete");
+
+    expect(runtime.capturePaused).toBe(true);
+    expect(runtime.playbackCount).toBe(1);
+
+    runtime.endPlayback("second_complete");
+
+    expect(runtime.capturePaused).toBe(false);
+    expect(runtime.playbackCount).toBe(0);
+  });
+
   test("returns to wake mode after a voice command completes", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const onCommand = vi.fn(async (_command, onPhase) => {
@@ -216,6 +238,66 @@ describe("VoiceRuntime", () => {
     expect(runtime.paused).toBe(false);
     expect(runtime.listeningEnabled).toBe(true);
     expect(onState).toHaveBeenLastCalledWith("Listening for Mjolnir");
+  });
+
+  test("cleanup continues when a track and AudioContext fail to close", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const runtime = new VoiceRuntime({
+      apiBaseUrl: "/api/v1",
+      onCommand: vi.fn(),
+      onWake: vi.fn(),
+      onState: vi.fn(),
+      onInterruption: vi.fn()
+    });
+    const brokenTrack = { stop: vi.fn(() => { throw new Error("track failure"); }) };
+    const healthyTrack = { stop: vi.fn() };
+    runtime.sessionId = "voice-session";
+    runtime.stream = { getTracks: () => [brokenTrack, healthyTrack] };
+    runtime.audioContext = { state: "running", close: vi.fn().mockRejectedValue(new Error("context failure")) };
+    runtime.request = vi.fn().mockResolvedValue({ state: "listening_for_wake_word" });
+
+    await runtime.stop();
+
+    expect(brokenTrack.stop).toHaveBeenCalledOnce();
+    expect(healthyTrack.stop).toHaveBeenCalledOnce();
+    expect(runtime.audioContext).toBeNull();
+    expect(runtime.stream).toBeNull();
+    expect(runtime.request).toHaveBeenCalledWith(
+      "/voice/sessions/voice-session",
+      { method: "DELETE" }
+    );
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ event: "voice_track_cleanup_failure" }));
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ event: "voice_audio_context_cleanup_failure" }));
+    error.mockRestore();
+  });
+
+  test("concurrent cleanup requests release resources only once", async () => {
+    const runtime = new VoiceRuntime({
+      apiBaseUrl: "/api/v1",
+      onCommand: vi.fn(),
+      onWake: vi.fn(),
+      onState: vi.fn(),
+      onInterruption: vi.fn()
+    });
+    const track = { stop: vi.fn() };
+    let finishClose;
+    runtime.sessionId = "voice-session";
+    runtime.stream = { getTracks: () => [track] };
+    const audioContext = {
+      state: "running",
+      close: vi.fn(() => new Promise((resolve) => { finishClose = resolve; }))
+    };
+    runtime.audioContext = audioContext;
+    runtime.request = vi.fn().mockResolvedValue({ state: "listening_for_wake_word" });
+
+    const first = runtime.releaseResources("quit");
+    const second = runtime.releaseResources("quit");
+    finishClose();
+    await Promise.all([first, second]);
+
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(audioContext.close).toHaveBeenCalledOnce();
+    expect(runtime.request).toHaveBeenCalledOnce();
   });
 
   test("recreates a backend session after an audio request reports a stale session", async () => {

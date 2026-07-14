@@ -4,7 +4,20 @@
   "private": true,
   "description": "Local-first Windows desktop operating assistant.",
   "main": "desktop/main.js",
+  "build": {
+    "appId": "com.mjolniros.desktop",
+    "productName": "MjolnirOS",
+    "win": {
+      "icon": "assets/branding/mjolnir.ico",
+      "target": "nsis"
+    },
+    "nsis": {
+      "installerIcon": "assets/branding/mjolnir.ico",
+      "uninstallerIcon": "assets/branding/mjolnir.ico"
+    }
+  },
   "scripts": {
+    "dev": "node desktop/dev.js",
     "backend:dev": "uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload",
     "backend:test": ".\\.venv\\Scripts\\python.exe -m pytest --basetemp .pytest_tmp",
     "frontend:dev": "npm run dev --prefix frontend",

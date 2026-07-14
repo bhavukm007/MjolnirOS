@@ -103,30 +103,19 @@ def test_email_and_browser_preferences_persist_without_memory(tmp_path) -> None:
     assert intent.website and intent.website.url == "https://outlook.live.com/mail/"
 
 
-def test_controller_launches_context_before_navigation_and_reports_proof(monkeypatch) -> None:
+def test_controller_uses_centralized_native_profile_for_navigation(monkeypatch, tmp_path) -> None:
     controller = BrowserController(AppSettings())
-    order: list[str] = []
-
-    async def context(_browser):
-        order.append("launch")
-        controller._resolved_browsers["chrome"] = "chrome"
-        return object()
-
-    def page(_context, _browser, _index):
-        return object()
-
-    async def opened(_page, url, browser, target_label=None):
-        order.append("navigate")
-        from backend.app.domain.browser import BrowserActionResult
-        return BrowserActionResult(
-            success=True,
-            message=f"Opened {target_label} in Chrome.",
-            data={"browser_started": True, "navigation_succeeded": True, "url": url},
-        )
-
-    monkeypatch.setattr(controller, "_context", context)
-    monkeypatch.setattr(controller, "_page", page)
-    monkeypatch.setattr(controller, "_open", opened)
+    chrome = tmp_path / "chrome.exe"
+    chrome.touch()
+    profile_root = tmp_path / "User Data"
+    controller._settings.browser_chrome_user_data_path = profile_root
+    controller._settings.browser_chrome_profile_directory = "Default"
+    monkeypatch.setattr(controller, "_browser_executable", lambda _browser: str(chrome))
+    commands: list[list[str]] = []
+    monkeypatch.setattr(
+        "backend.app.browser.controller.subprocess.Popen",
+        lambda command, **_kwargs: commands.append(command) or type("Process", (), {"pid": 42})(),
+    )
     result = asyncio.run(
         controller.execute(
             BrowserActionRequest(
@@ -134,28 +123,24 @@ def test_controller_launches_context_before_navigation_and_reports_proof(monkeyp
             )
         )
     )
-    assert order == ["launch", "navigate"]
+    assert commands == [[
+        str(chrome),
+        f"--user-data-dir={profile_root}",
+        "--profile-directory=Default",
+        "https://github.com/",
+    ]]
     assert result.success and result.data["navigation_succeeded"] is True
+    assert result.data["profile_directory"] == "Default"
 
 
 def test_controller_propagates_navigation_failure(monkeypatch) -> None:
     controller = BrowserController(AppSettings())
 
-    async def context(_browser):
-        return object()
-
-    def page(_context, _browser, _index):
-        return object()
-
-    async def failed(*_args, **_kwargs):
+    async def failed(_request):
         raise PlaywrightError("navigation failed")
 
-    monkeypatch.setattr(controller, "_context", context)
-    monkeypatch.setattr(controller, "_page", page)
-    monkeypatch.setattr(controller, "_open", failed)
-    result = asyncio.run(
-        controller.execute(BrowserActionRequest(action="open", url="https://github.com"))
-    )
+    monkeypatch.setattr(controller, "_execute", failed)
+    result = asyncio.run(controller.execute(BrowserActionRequest(action="read")))
     assert result.success is False
     assert "navigation failed" in result.message.lower()
     assert result.data["navigation_succeeded"] is False

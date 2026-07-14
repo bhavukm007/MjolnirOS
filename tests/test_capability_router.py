@@ -8,7 +8,20 @@ from backend.app.ai.intent_router import IntentRouter
 
 
 def route(message: str):
-    return CapabilityRouter().route(IntentRouter("Mjolnir").classify(message))
+    installed = {
+        "camera",
+        "calculator",
+        "chrome",
+        "vs code",
+        "spotify",
+        "discord",
+        "steam",
+        "notepad",
+    }
+    router = CapabilityRouter(
+        application_resolver=lambda name: name if name.lower() in installed else None
+    )
+    return router.route(IntentRouter("Mjolnir").classify(message))
 
 
 def test_browser_navigation_precedes_generic_application_launch() -> None:
@@ -17,8 +30,10 @@ def test_browser_navigation_precedes_generic_application_launch() -> None:
 
 
 def test_windows_application_launch() -> None:
+    assert route("Open Camera").capability is Capability.WINDOWS
     assert route("Open Chrome").capability is Capability.WINDOWS
     assert route("Open Calculator").capability is Capability.WINDOWS
+    assert route("Open Spotify").capability is Capability.WINDOWS
 
 
 def test_general_conversation_uses_llm_fallback() -> None:
@@ -45,6 +60,13 @@ def test_unknown_request_has_explicit_fallback_decision() -> None:
     decision = route("flibbertigibbet")
     assert decision.capability is Capability.LLM
     assert decision.handler == "ollama_fallback"
+
+
+def test_unknown_open_target_returns_not_found_instead_of_guessing_a_website() -> None:
+    for message in ("Open UnknownApplicationXYZ", "Open UnknownWebsiteXYZ"):
+        decision = route(message)
+        assert decision.capability is Capability.APPLICATION_NOT_FOUND
+        assert decision.handler == "application_not_found"
 
 
 def test_memory_and_planner_routes_are_preserved() -> None:

@@ -207,6 +207,28 @@ def test_inline_command_corrects_common_vosk_open_inflection() -> None:
     assert result.command == "open chrome"
 
 
+@pytest.mark.parametrize(
+    ("transcript", "command"),
+    (
+        ("open calculater", "open calculator"),
+        ("open calclator", "open calculator"),
+        ("open calculate her", "open calculator"),
+        ("open git hub", "open github"),
+        ("open chat gpt", "open chat gpt"),
+        ("open browserr", "open browser"),
+    ),
+)
+def test_command_transcript_is_normalized_before_dispatch(
+    transcript: str, command: str
+) -> None:
+    session = VoskRecognitionSession(FakeRecognizer(), WakeWordDetector("Mjolnir"))
+    session._process_transcript("hello meonir")
+
+    result = session._process_transcript(transcript)
+
+    assert result.command == command
+
+
 def test_constrained_wake_can_align_vosk_leading_filler_without_global_matching() -> None:
     detector = WakeWordDetector("Mjolnir")
     aligned = detector.align_correlated_transcript("i got me on it opened chrome")

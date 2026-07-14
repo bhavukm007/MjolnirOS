@@ -16,6 +16,7 @@ from backend.app.memory.service import MemoryService
 from backend.app.memory.context_engine import ContextEngine
 from backend.app.ai.intent_router import Intent, IntentRouter
 from backend.app.ai.capability_router import Capability, CapabilityDecision, CapabilityRouter
+from backend.app.ai.text_normalizer import TextNormalizer
 from backend.app.api.routes.windows import get_windows_controller
 from backend.app.api.routes.browser import get_browser_controller
 from backend.app.api.routes.github import get_github_controller
@@ -27,7 +28,11 @@ from backend.app.automation.planner_service import PlannerService
 
 router = APIRouter(tags=["ai"])
 logger = logging.getLogger(__name__)
-capability_router = CapabilityRouter()
+windows_controller = get_windows_controller()
+capability_router = CapabilityRouter(
+    application_resolver=windows_controller.resolve_application
+)
+text_normalizer = TextNormalizer()
 
 
 def get_ollama_client() -> OllamaClient:
@@ -90,7 +95,8 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     settings = get_settings()
     model = request.model or settings.default_model
     memory = MemoryService(get_memory_store())
-    routed = IntentRouter(settings.voice_wake_word).classify(request.message)
+    normalized_message = text_normalizer.normalize(request.message)
+    routed = IntentRouter(settings.voice_wake_word).classify(normalized_message)
     message = routed.message
     decision = capability_router.route(routed)
     logger.info(
@@ -107,12 +113,20 @@ async def stream_chat(request: ChatRequest) -> StreamingResponse:
     if decision.capability is Capability.GREETING:
         response = "What's up, Boss?" if "up" in message.lower() else "Hello, Boss. How can I help?"
         return _direct_response(memory, message, response, decision)
+    if decision.capability is Capability.APPLICATION_NOT_FOUND:
+        target = decision.payload.parameters["name"]
+        return _direct_response(
+            memory,
+            message,
+            f"Application or website not found: {target}.",
+            decision,
+        )
 
     if decision.capability is Capability.BROWSER:
         browser_result = await get_browser_controller().execute(decision.payload)
         return _direct_response(memory, message, browser_result.message, decision)
     if decision.capability is Capability.WINDOWS:
-        action_result = get_windows_controller().execute(
+        action_result = windows_controller.execute(
             decision.payload.action, decision.payload.parameters, False
         )
         if action_result.success and routed.intent is Intent.APPLICATION_LAUNCH:

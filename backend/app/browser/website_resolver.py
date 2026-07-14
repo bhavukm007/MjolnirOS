@@ -33,6 +33,8 @@ class WebsiteResolver:
         "Google Drive": ("https://drive.google.com/", ("drive", "google drive")),
         "Google Calendar": ("https://calendar.google.com/", ("calendar", "google calendar")),
         "Outlook": ("https://outlook.live.com/mail/", ("outlook", "outlook mail")),
+        "Reddit": ("https://www.reddit.com/", ("reddit",)),
+        "LeetCode": ("https://leetcode.com", ("leetcode",)),
     }
 
     _APPLICATION_TARGETS = {
@@ -81,12 +83,6 @@ class WebsiteResolver:
         if re.fullmatch(r"(?:[a-z0-9-]+\.)+[a-z]{2,}(?:/[^\s]*)?", candidate, re.I):
             host = candidate.split("/", 1)[0]
             return WebsiteResolution(name=host, url=f"https://{candidate}")
-
-        # A simple brand-like token is a confident conventional website name.
-        # This covers new sites without requiring an alias for every .com host.
-        if re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", candidate, re.I):
-            host = f"{candidate.lower()}.com"
-            return WebsiteResolution(name=candidate, url=f"https://{host}")
 
         # Explicitly website-shaped but ambiguous phrases stay in the browser
         # path and degrade safely to a search instead of application launch.

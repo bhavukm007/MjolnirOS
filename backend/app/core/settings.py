@@ -70,6 +70,12 @@ class AppSettings(BaseSettings):
     windows_search_root: Path = Path("C:/Users")
     windows_screenshot_path: Path = Path("assets/screenshots")
     browser_session_path: Path = Path("database/browser_sessions")
+    browser_chrome_user_data_path: Path = Field(
+        default_factory=lambda: Path(os.environ.get("LOCALAPPDATA", ""))
+        / "Google/Chrome/User Data"
+    )
+    browser_chrome_profile_directory: str = "Default"
+    browser_incognito: bool = False
     browser_download_path: Path = Path("assets/downloads")
     browser_screenshot_path: Path = Path("assets/browser_screenshots")
     browser_headless: bool = False

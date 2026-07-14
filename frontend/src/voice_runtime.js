@@ -36,7 +36,7 @@ function pcm16(samples, sampleRate) {
 /** Browser microphone bridge for the backend's continuous Vosk session. */
 export class VoiceRuntime {
   constructor({ apiBaseUrl, onCommand, onWake, onState, onInterruption }) {
-    Object.assign(this, { apiBaseUrl, onCommand, onWake, onState, onInterruption, sessionId: null, stream: null, mediaRecorder: null, audioContext: null, source: null, processor: null, mutedOutput: null, chain: Promise.resolve(), interrupted: false, capturePaused: false, manuallyPaused: false, pipelineBusy: false, resumeVoiceState: "WAITING_FOR_WAKE", audioGeneration: 0, frameCount: 0, lastDebugAt: 0, voiceState: "IDLE" });
+    Object.assign(this, { apiBaseUrl, onCommand, onWake, onState, onInterruption, sessionId: null, stream: null, mediaRecorder: null, audioContext: null, source: null, processor: null, mutedOutput: null, chain: Promise.resolve(), releasePromise: null, interrupted: false, capturePaused: false, playbackCount: 0, manuallyPaused: false, pipelineBusy: false, resumeVoiceState: "WAITING_FOR_WAKE", audioGeneration: 0, frameCount: 0, lastDebugAt: 0, voiceState: "IDLE" });
   }
   get sessionActive() { return Boolean(this.sessionId); }
   get paused() { return this.manuallyPaused; }
@@ -82,18 +82,38 @@ export class VoiceRuntime {
     this.onState("Voice listening is off");
   }
   async releaseResources(reason) {
+    if (this.releasePromise) return this.releasePromise;
+    this.releasePromise = this.releaseResourcesOnce(reason);
+    try {
+      await this.releasePromise;
+    } finally {
+      this.releasePromise = null;
+    }
+  }
+  async releaseResourcesOnce(reason) {
     const id = this.sessionId;
+    const hadStream = Boolean(this.stream);
+    const hadAudioContext = Boolean(this.audioContext);
     this.sessionId = null;
     this.audioGeneration += 1;
     this.capturePaused = true;
-    if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") this.mediaRecorder.stop();
+    this.pipelineBusy = false;
+    this.playbackCount = 0;
+    this.interrupted = false;
+    if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
+      try { this.mediaRecorder.stop(); } catch (error) { voiceLog("ERROR", "voice_media_recorder_cleanup_failure", { error: error.message }); }
+    }
     this.mediaRecorder = null;
     if (this.processor) this.processor.onaudioprocess = null;
     try { this.processor?.disconnect(); } catch {}
     try { this.source?.disconnect(); } catch {}
     try { this.mutedOutput?.disconnect(); } catch {}
-    this.stream?.getTracks().forEach((track) => track.stop());
-    if (this.audioContext && this.audioContext.state !== "closed") await this.audioContext.close();
+    for (const track of this.stream?.getTracks() ?? []) {
+      try { track.stop(); } catch (error) { voiceLog("ERROR", "voice_track_cleanup_failure", { error: error.message }); }
+    }
+    if (this.audioContext && this.audioContext.state !== "closed") {
+      try { await this.audioContext.close(); } catch (error) { voiceLog("ERROR", "voice_audio_context_cleanup_failure", { error: error.message }); }
+    }
     this.processor = null;
     this.source = null;
     this.mutedOutput = null;
@@ -104,7 +124,7 @@ export class VoiceRuntime {
     }
     if (id) voiceLog("INFO", "voice_session_destroyed", { session_id: id });
     if (id) voiceLog("DEBUG", "voice_connection_closed", { transport: "rest", reason, session_id: id });
-    voiceLog("INFO", "voice_resources_released", { reason, media_stream: true, audio_context: true, recognition_session: Boolean(id) });
+    voiceLog("INFO", "voice_resources_released", { reason, media_stream: hadStream, audio_context: hadAudioContext, recognition_session: Boolean(id) });
   }
   async pause() {
     if (!this.sessionId || this.manuallyPaused) return;
@@ -121,11 +141,13 @@ export class VoiceRuntime {
     voiceLog("INFO", "voice_microphone_resumed", { reason: "manual", recreated: true });
   }
   beginPlayback(reason = "tts") {
+    this.playbackCount += 1;
     this.capturePaused = true;
     voiceLog("INFO", "voice_microphone_paused", { reason });
   }
   endPlayback(reason = "tts_complete") {
-    this.capturePaused = this.manuallyPaused || this.pipelineBusy;
+    this.playbackCount = Math.max(0, this.playbackCount - 1);
+    this.capturePaused = this.manuallyPaused || this.pipelineBusy || this.playbackCount > 0;
     if (!this.capturePaused) voiceLog("INFO", "voice_microphone_resumed", { reason });
   }
   process(samples) {

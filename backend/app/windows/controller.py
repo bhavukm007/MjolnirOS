@@ -1,12 +1,22 @@
 """Safe, local Windows desktop control implementation."""
 from __future__ import annotations
 import logging, os, shutil, subprocess, time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 import psutil, pyperclip
 from PIL import ImageGrab
 from backend.app.core.settings import AppSettings
 from backend.app.domain.windows import WindowsActionResult
+
+
+@dataclass(frozen=True)
+class WindowsApplicationResolution:
+    """A launchable application discovered without starting it."""
+
+    name: str
+    command: tuple[str, ...]
+    source: str
 
 class WindowsController:
     """Execute supported Windows actions and report structured local results."""
@@ -82,7 +92,10 @@ class WindowsController:
         "whatsapp": "WhatsApp",
         "mail": "Mail",
     }
-    def __init__(self, settings: AppSettings) -> None: self._settings=settings; self._logger=logging.getLogger(__name__)
+    def __init__(self, settings: AppSettings) -> None:
+        self._settings=settings
+        self._logger=logging.getLogger(__name__)
+        self._application_resolution_cache: dict[str, WindowsApplicationResolution] = {}
     def execute(self, action: str, arguments: dict[str, object], confirmed: bool) -> WindowsActionResult:
         """Execute one local action after enforcing its confirmation policy."""
         if action in self._DESTRUCTIVE and not confirmed: return WindowsActionResult(success=False,message="Explicit confirmation is required.",confirmation_required=True)
@@ -106,6 +119,31 @@ class WindowsController:
                 message=f"Opened {name}.",
                 data={"uri": "ms-settings:"},
             )
+        resolution = self.resolve_application(name)
+        if resolution is None:
+            self._logger.error(
+                "windows_application_resolution_failed",
+                extra={
+                    "normalized_name": normalized_name,
+                    "windows_error_code": None,
+                },
+            )
+            raise ValueError(f"Application is not installed or cannot be resolved: {name}.")
+        launch = self._launch_application(list(resolution.command), normalized_name)
+        return WindowsActionResult(success=True,message=f"Opened {name}.", data=launch)
+
+    def resolve_application(self, name: str) -> WindowsApplicationResolution | None:
+        """Resolve an installed application without launching it."""
+        normalized_name = name.strip().lower()
+        if not normalized_name:
+            return None
+        cached = self._application_resolution_cache.get(normalized_name)
+        if cached is not None:
+            return cached
+        if normalized_name in {"settings", "windows settings"}:
+            resolution = WindowsApplicationResolution(name, ("ms-settings:",), "windows_uri")
+            self._application_resolution_cache[normalized_name] = resolution
+            return resolution
         candidates = self._APPLICATION_ALIASES.get(normalized_name, ())
         alias_details = [
             {"path": str(path), "exists": path.is_file()} for path in candidates
@@ -131,8 +169,12 @@ class WindowsController:
             "windows_application_path_lookup",
             extra={"normalized_name": normalized_name, "path_result": path_lookup},
         )
-        if executable is None and normalized_name in self._STORE_APPLICATIONS:
-            store_name = self._STORE_APPLICATIONS[normalized_name]
+        if executable is not None:
+            resolution = WindowsApplicationResolution(name, (executable,), "executable")
+            self._application_resolution_cache[normalized_name] = resolution
+            return resolution
+        store_name = self._STORE_APPLICATIONS.get(normalized_name, name.strip())
+        if store_name:
             self._logger.info(
                 "windows_application_store_lookup",
                 extra={"normalized_name": normalized_name, "store_name": store_name},
@@ -143,25 +185,21 @@ class WindowsController:
                 extra={"normalized_name": normalized_name, "app_user_model_id": app_id},
             )
             if app_id:
-                command = ["explorer.exe", f"shell:AppsFolder\\{app_id}"]
-                launch = self._launch_application(command, normalized_name)
-                return WindowsActionResult(success=True,message=f"Opened {name}.", data=launch)
-        if executable is None:
-            self._logger.error(
-                "windows_application_resolution_failed",
-                extra={
-                    "normalized_name": normalized_name,
-                    "windows_error_code": None,
-                },
-            )
-            raise ValueError(f"Application is not installed or cannot be resolved: {name}.")
-        launch = self._launch_application([executable], normalized_name)
-        return WindowsActionResult(success=True,message=f"Opened {name}.", data=launch)
+                resolution = WindowsApplicationResolution(
+                    name,
+                    ("explorer.exe", f"shell:AppsFolder\\{app_id}"),
+                    "windows_start_apps",
+                )
+                self._application_resolution_cache[normalized_name] = resolution
+                return resolution
+        return None
     def _windows_store_app_id(self, display_name: str) -> str | None:
+        escaped_display_name = display_name.replace("'", "''")
         script = (
-            f"$start=Get-StartApps | Where-Object {{$_.Name -like '*{display_name}*'}} | Select-Object -First 1; "
+            f"$name='{escaped_display_name}'; "
+            "$start=Get-StartApps | Where-Object {$_.Name -ieq $name} | Select-Object -First 1; "
             "if($start){$start.AppID; exit 0}; "
-            f"$package=Get-AppxPackage | Where-Object {{$_.Name -like '*{display_name}*'}} | Select-Object -First 1; "
+            "$package=Get-AppxPackage | Where-Object {$_.Name -ieq $name} | Select-Object -First 1; "
             "if($package){$manifest=Get-AppxPackageManifest $package; "
             "$application=$manifest.Package.Applications.Application | Select-Object -First 1; "
             "\"$($package.PackageFamilyName)!$($application.Id)\"}"
@@ -186,6 +224,12 @@ class WindowsController:
             )
             return None
         app_id = completed.stdout.strip()
+        if "._crx_" in app_id.lower():
+            self._logger.info(
+                "windows_application_browser_shortcut_ignored",
+                extra={"display_name": display_name, "app_user_model_id": app_id},
+            )
+            return None
         self._logger.info(
             "windows_application_store_return",
             extra={
