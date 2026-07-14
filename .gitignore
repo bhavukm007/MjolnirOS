@@ -60,3 +60,25 @@ assets/models/
 
 # Chroma Vector Database
 database/chroma/
+
+# ============================================
+# MjolnirOS Runtime
+# ============================================
+
+# Electron runtime
+database/electron-runtime/
+
+# Browser profiles / sessions
+database/browser_sessions/
+
+# SQLite runtime files
+database/*.db-shm
+database/*.db-wal
+
+# Browser screenshots
+assets/browser_screenshots/
+
+# Temporary pytest folders
+.pytest_tmp_browser/
+.pytest_tmp_e2e_fixes/
+.pytest_tmp_website_resolver/

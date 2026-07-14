@@ -1,36 +1,62 @@
-"""Natural-language command recognition for the Browser Agent."""
+"""Natural-language command recognition for browser and website actions."""
 
 from __future__ import annotations
 
+import logging
 from urllib.parse import quote_plus
 
+from backend.app.browser.intent_decomposer import DecomposedBrowserIntent, IntentDecomposer
+from backend.app.core.settings import get_settings
 from backend.app.domain.browser import BrowserActionRequest
+from backend.app.settings.settings_service import SettingsService
 
 
-_KNOWN_SITES = {
-    "gmail": "https://mail.google.com/",
-    "google": "https://www.google.com/",
-    "github": "https://github.com/",
-    "youtube": "https://www.youtube.com/",
-}
+logger = logging.getLogger(__name__)
+
+
+def decompose_browser_command(command: str) -> DecomposedBrowserIntent | None:
+    """Decompose a command using persisted, non-secret application preferences."""
+    preferences = SettingsService(get_settings()).get()
+    intent = IntentDecomposer().decompose(
+        command,
+        preferred_browser=preferences.preferred_browser,
+        preferred_email=preferences.preferred_email_service,
+    )
+    if intent is not None:
+        logger.info(
+            "browser_intent_decomposed",
+            extra={
+                "application": intent.application,
+                "browser": intent.browser,
+                "website": intent.website.url if intent.website else None,
+                "search_query": intent.search_query,
+                "sequential_actions": intent.sequential_actions,
+            },
+        )
+    return intent
 
 
 def parse_browser_command(command: str) -> BrowserActionRequest | None:
-    """Translate supported spoken or typed browser commands into safe requests."""
-    original = command.strip()
-    normalized = original.lower().removeprefix("mjolnir,").strip().rstrip(".,!?")
-    if normalized.startswith("search "):
-        return BrowserActionRequest(action="search", query=original[original.lower().find("search ") + 7 :].strip())
-    if normalized.startswith("open "):
-        target = original[original.lower().find("open ") + 5 :].strip()
-        clean_target = target.rstrip(".,!?")
-        url = _KNOWN_SITES.get(clean_target.lower())
-        if url:
-            return BrowserActionRequest(action="open", url=url)
-        if clean_target.startswith(("http://", "https://")):
-            return BrowserActionRequest(action="open", url=clean_target)
-        if "." in clean_target and " " not in clean_target:
-            return BrowserActionRequest(action="open", url=f"https://{clean_target}")
+    """Translate a decomposed navigation intent into a safe browser request."""
+    intent = decompose_browser_command(command)
+    if intent is not None and intent.requires_navigation:
+        if intent.search_query is not None:
+            return BrowserActionRequest(
+                action="search",
+                browser=intent.browser or "system",
+                query=intent.search_query,
+                target_label="Google search",
+            )
+        if intent.website is not None:
+            return BrowserActionRequest(
+                action="open",
+                browser=intent.browser or "system",
+                url=intent.website.url,
+                target_label=intent.website.name,
+            )
+
+    # Retain the established non-navigation Browser Agent commands.
+    normalized = command.strip().lower().removeprefix("mjolnir,").strip().rstrip(".,!?")
     if normalized in {"summarize this article", "summarize this page", "summarize"}:
         return BrowserActionRequest(action="summarize")
     if normalized in {"read this article", "read this page", "read page"}:
@@ -38,7 +64,7 @@ def parse_browser_command(command: str) -> BrowserActionRequest | None:
     if normalized == "download the latest python release":
         return BrowserActionRequest(action="open", url="https://www.python.org/downloads/")
     if normalized.startswith("download "):
-        target = original[original.lower().find("download ") + 9 :].strip()
+        target = command[command.lower().find("download ") + 9 :].strip()
         if target.startswith(("http://", "https://")):
             return BrowserActionRequest(action="download", url=target)
     if normalized in {"list tabs", "show tabs"}:

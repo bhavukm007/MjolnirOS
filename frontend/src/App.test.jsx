@@ -6,6 +6,12 @@ import App from "./App.jsx";
 describe("App", () => {
   test("renders dashboard data from the backend", async () => {
     global.fetch = vi.fn((url) => {
+      if (url.endsWith("/chat")) {
+        const read = vi.fn()
+          .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('{"type":"token","content":"Done."}\n') })
+          .mockResolvedValueOnce({ done: true, value: undefined });
+        return Promise.resolve({ ok: true, body: { getReader: () => ({ read }) } });
+      }
       const data = url.endsWith("/health")
         ? {
             status: "ok",
@@ -42,6 +48,10 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText("online")).toBeInTheDocument());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/voice/sessions"),
+      { method: "POST" }
+    ));
     expect(screen.getByText("MjolnirOS")).toBeInTheDocument();
     expect(screen.getByText("backend")).toBeInTheDocument();
     expect(screen.getByText("frontend")).toBeInTheDocument();
@@ -64,5 +74,11 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("Productivity Plugins")).toBeInTheDocument());
     expect(screen.getByText("Connected: user@example.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sync" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    fireEvent.change(screen.getByPlaceholderText("Type a command or say Mjolnir"), { target: { value: "typed command" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(screen.getByText("Done, Boss.")).toBeInTheDocument());
+    expect(global.fetch.mock.calls.some(([url]) => url.includes("/voice/speak?wait=true"))).toBe(true);
   });
 });

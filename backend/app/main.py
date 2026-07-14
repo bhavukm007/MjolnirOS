@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.router import api_router
+from backend.app.api.routes.browser import get_browser_controller
 from backend.app.core.logging import configure_logging
 from backend.app.core.settings import AppSettings, get_settings
 from backend.app.plugins.plugin_service import PluginService
@@ -23,8 +24,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "backend_started",
         extra={"app_name": settings.app_name, "environment": settings.environment},
     )
-    yield
-    logging.getLogger(__name__).info("backend_stopped")
+    try:
+        yield
+    finally:
+        await get_browser_controller().close()
+        get_browser_controller.cache_clear()
+        logging.getLogger(__name__).info("backend_stopped")
 
 
 def create_app(settings: AppSettings | None = None) -> FastAPI:
@@ -40,7 +45,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.state.settings = app_settings
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[app_settings.frontend_url],
+        allow_origins=app_settings.cors_allowed_origins(),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["*"],

@@ -7,8 +7,10 @@ from datetime import UTC, datetime
 import logging
 import os
 from pathlib import Path
+import subprocess
 from typing import Any
 from urllib.parse import urlparse
+import winreg
 
 from playwright.async_api import BrowserContext, Error as PlaywrightError, Page, Playwright, async_playwright
 
@@ -29,6 +31,7 @@ class BrowserController:
         self._playwright: Playwright | None = None
         self._contexts: dict[BrowserName, BrowserContext] = {}
         self._active_tabs: dict[BrowserName, int] = {}
+        self._resolved_browsers: dict[BrowserName, BrowserName] = {}
         self._lock = asyncio.Lock()
         self._summarizer = PageSummarizer(settings)
         self._logger = logging.getLogger(__name__)
@@ -43,12 +46,117 @@ class BrowserController:
             )
         try:
             return await self._execute(request)
+        except NotImplementedError:
+            # Uvicorn reload workers use a Windows selector event loop, which
+            # cannot start Playwright's driver subprocess. Navigation commands
+            # still have a deterministic native-browser path in that runtime.
+            if request.action in {"open", "search"}:
+                self._logger.exception(
+                    "browser_playwright_unavailable",
+                    extra={"action": request.action, "browser": request.browser},
+                )
+                return await asyncio.to_thread(self._native_open, request)
+            raise
         except (PlaywrightError, OSError, ValueError) as error:
-            self._logger.warning(
+            self._logger.exception(
                 "browser_action_failed",
-                extra={"action": request.action, "browser": request.browser, "error_type": type(error).__name__},
+                extra={
+                    "action": request.action,
+                    "browser": request.browser,
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                },
             )
-            return BrowserActionResult(success=False, message="Browser action failed. Check the browser session and request.")
+            launch_failed = isinstance(error, ValueError) or (
+                isinstance(error, PlaywrightError)
+                and "launch_persistent_context" in str(error)
+            )
+            if request.action in {"open", "search"} and launch_failed:
+                return await asyncio.to_thread(self._native_open, request)
+            return BrowserActionResult(
+                success=False,
+                message=f"Browser action failed: {error}",
+                data={
+                    "browser_started": False,
+                    "navigation_succeeded": False,
+                    "error_type": type(error).__name__,
+                },
+            )
+
+    def _native_open(self, request: BrowserActionRequest) -> BrowserActionResult:
+        """Launch a resolved Windows browser with a URL when Playwright cannot start."""
+        if request.action == "search":
+            if not request.query:
+                raise ValueError("A search query is required.")
+            url = google_search_url(request.query)
+        else:
+            url = self._required_url(request)
+
+        requested_browser = request.browser
+        resolved_browser = requested_browser
+        executable = None
+        if requested_browser != "system":
+            executable = self._browser_executable(requested_browser)
+        self._logger.info(
+            "browser_native_navigation_start",
+            extra={"browser": resolved_browser, "url": url, "executable": executable},
+        )
+        if requested_browser == "system":
+            os.startfile(url)
+            process_id = None
+        else:
+            process = subprocess.Popen(
+                [executable, url],
+                close_fds=True,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            process_id = process.pid
+        label = request.target_label or "website"
+        self._logger.info(
+            "browser_native_navigation_started",
+            extra={"browser": resolved_browser, "url": url, "process_id": process_id},
+        )
+        return BrowserActionResult(
+            success=True,
+            message=f"Opened {label} in {str(resolved_browser).title()}.",
+            data={
+                "requested_browser": requested_browser,
+                "resolved_browser": resolved_browser,
+                "browser_started": True,
+                "navigation_succeeded": True,
+                "requested_url": url,
+                "url": url,
+                "process_id": process_id,
+                "navigation_driver": "native",
+            },
+        )
+
+    @staticmethod
+    def _browser_executable(browser: BrowserName) -> str:
+        candidates = {
+            "chrome": (
+                Path(os.environ.get("PROGRAMFILES", "C:/Program Files"))
+                / "Google/Chrome/Application/chrome.exe",
+                Path(os.environ.get("LOCALAPPDATA", ""))
+                / "Google/Chrome/Application/chrome.exe",
+            ),
+            "edge": (
+                Path(os.environ.get("PROGRAMFILES(X86)", "C:/Program Files (x86)"))
+                / "Microsoft/Edge/Application/msedge.exe",
+                Path(os.environ.get("PROGRAMFILES", "C:/Program Files"))
+                / "Microsoft/Edge/Application/msedge.exe",
+            ),
+            "firefox": (
+                Path(os.environ.get("PROGRAMFILES", "C:/Program Files"))
+                / "Mozilla Firefox/firefox.exe",
+                Path(os.environ.get("PROGRAMFILES(X86)", "C:/Program Files (x86)"))
+                / "Mozilla Firefox/firefox.exe",
+            ),
+        }
+        for candidate in candidates.get(browser, ()):
+            if candidate.is_file():
+                return str(candidate)
+        raise ValueError(f"The {browser} browser executable could not be resolved.")
 
     async def close(self) -> None:
         """Release running browser contexts while retaining their local sessions."""
@@ -63,13 +171,23 @@ class BrowserController:
         context = await self._context(request.browser)
         page = self._page(context, request.browser, request.tab_index)
         if request.action == "open":
-            return await self._open(page, self._required_url(request))
+            return await self._open(
+                page,
+                self._required_url(request),
+                request.browser,
+                request.target_label,
+            )
         if request.action == "new_tab":
             return await self._new_tab(context, request.browser, request.url)
         if request.action == "search":
             if not request.query:
                 raise ValueError("A search query is required.")
-            return await self._open(page, google_search_url(request.query), message="Google search opened.")
+            return await self._open(
+                page,
+                google_search_url(request.query),
+                request.browser,
+                request.target_label or "Google search",
+            )
         if request.action == "read":
             return await self._read(page)
         if request.action == "summarize":
@@ -99,13 +217,35 @@ class BrowserController:
     async def _context(self, browser: BrowserName) -> BrowserContext:
         async with self._lock:
             if browser in self._contexts:
-                return self._contexts[browser]
+                context = self._contexts[browser]
+                if context.pages:
+                    return context
+                # Closing the final browser window invalidates a persistent
+                # Playwright context. Discard it so the next command relaunches.
+                self._contexts.pop(browser, None)
+                self._active_tabs.pop(browser, None)
+                try:
+                    await context.close()
+                except PlaywrightError:
+                    pass
+                self._logger.info(
+                    "browser_stale_session_discarded", extra={"browser": browser}
+                )
             session_path = self._settings.browser_session_path / browser
             session_path.mkdir(parents=True, exist_ok=True)
             os.chmod(session_path, 0o700)
             if self._playwright is None:
                 self._playwright = await async_playwright().start()
             browser_type, launch_options = self._launch_options(browser)
+            resolved_browser = self._resolved_browsers.get(browser, browser)
+            self._logger.info(
+                "browser_launch_start",
+                extra={
+                    "requested_browser": browser,
+                    "resolved_browser": resolved_browser,
+                    "launch_options": launch_options,
+                },
+            )
             context = await browser_type.launch_persistent_context(
                 str(session_path),
                 headless=self._settings.browser_headless,
@@ -120,11 +260,35 @@ class BrowserController:
     def _launch_options(self, browser: BrowserName) -> tuple[Any, dict[str, str]]:
         if self._playwright is None:
             raise RuntimeError("Playwright was not initialized.")
+        requested_browser = browser
+        if browser == "system":
+            browser = self._system_default_browser()
+        self._resolved_browsers[requested_browser] = browser
         if browser == "chrome":
             return self._playwright.chromium, {"channel": "chrome"}
         if browser == "edge":
             return self._playwright.chromium, {"channel": "msedge"}
         return self._playwright.firefox, {}
+
+    @staticmethod
+    def _system_default_browser() -> BrowserName:
+        """Resolve the Windows HTTPS association without substituting a browser."""
+        association_path = (
+            r"Software\Microsoft\Windows\Shell\Associations"
+            r"\UrlAssociations\https\UserChoice"
+        )
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, association_path) as key:
+                program_id = str(winreg.QueryValueEx(key, "ProgId")[0]).lower()
+        except OSError as error:
+            raise ValueError("The system default browser could not be resolved.") from error
+        if "chrome" in program_id:
+            return "chrome"
+        if "edge" in program_id or "msedge" in program_id:
+            return "edge"
+        if "firefox" in program_id:
+            return "firefox"
+        raise ValueError(f"The system default browser is unsupported: {program_id}.")
 
     def _page(self, context: BrowserContext, browser: BrowserName, tab_index: int | None) -> Page:
         pages = context.pages
@@ -136,9 +300,58 @@ class BrowserController:
         self._active_tabs[browser] = index
         return pages[index]
 
-    async def _open(self, page: Page, url: str, message: str = "Website opened.") -> BrowserActionResult:
+    async def _open(
+        self,
+        page: Page,
+        url: str,
+        browser: BrowserName,
+        target_label: str | None = None,
+    ) -> BrowserActionResult:
+        resolved_browser = self._resolved_browsers.get(browser, browser)
+        self._logger.info(
+            "browser_navigation_start",
+            extra={"browser": resolved_browser, "url": url},
+        )
         await page.goto(url, wait_until="domcontentloaded")
-        return BrowserActionResult(success=True, message=message, data={"url": page.url, "title": await page.title()})
+        try:
+            title = await page.title()
+        except PlaywrightError as error:
+            if "Execution context was destroyed" not in str(error):
+                raise
+            # A site can begin a client-side redirect immediately after
+            # DOMContentLoaded. Navigation already succeeded; a transient
+            # title lookup must not turn that success into a failed action.
+            self._logger.info(
+                "browser_navigation_title_deferred",
+                extra={"browser": resolved_browser, "url": page.url},
+            )
+            try:
+                await page.wait_for_load_state("domcontentloaded", timeout=5000)
+                title = await page.title()
+            except PlaywrightError as redirect_error:
+                message = str(redirect_error)
+                if "Execution context was destroyed" not in message and "Timeout" not in message:
+                    raise
+                title = ""
+        final_url = page.url
+        self._logger.info(
+            "browser_navigation_completed",
+            extra={"browser": resolved_browser, "requested_url": url, "url": final_url},
+        )
+        label = target_label or "website"
+        return BrowserActionResult(
+            success=True,
+            message=f"Opened {label} in {str(resolved_browser).title()}.",
+            data={
+                "requested_browser": browser,
+                "resolved_browser": resolved_browser,
+                "browser_started": True,
+                "navigation_succeeded": True,
+                "requested_url": url,
+                "url": final_url,
+                "title": title,
+            },
+        )
 
     async def _read(self, page: Page) -> BrowserActionResult:
         text = (await page.locator("body").inner_text()).strip()

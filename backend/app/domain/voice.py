@@ -9,7 +9,10 @@ class VoiceState(StrEnum):
     """States emitted by a continuous local listening session."""
 
     LISTENING_FOR_WAKE_WORD = "listening_for_wake_word"
+    WAKE_DETECTED = "wake_detected"
     LISTENING_FOR_COMMAND = "listening_for_command"
+    PROCESSING_COMMAND = "processing_command"
+    SPEAKING = "speaking"
 
 
 class VoiceHealthStatus(BaseModel):

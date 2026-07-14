@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, HttpUrl
 
 
-BrowserName = Literal["chrome", "edge", "firefox"]
+BrowserName = Literal["system", "chrome", "edge", "firefox"]
 BrowserActionName = Literal[
     "open",
     "new_tab",
@@ -31,7 +31,7 @@ class BrowserActionRequest(BaseModel):
     """A browser action request that never accepts credentials."""
 
     action: BrowserActionName = "open"
-    browser: BrowserName = "chrome"
+    browser: BrowserName = "system"
     url: HttpUrl | None = None
     query: str | None = Field(default=None, max_length=500)
     selector: str | None = Field(default=None, max_length=1000)
@@ -39,6 +39,7 @@ class BrowserActionRequest(BaseModel):
     file_path: str | None = Field(default=None, max_length=4096)
     tab_index: int | None = Field(default=None, ge=0)
     confirmed: bool = False
+    target_label: str | None = Field(default=None, max_length=200)
 
 class BrowserActionResult(BaseModel):
     """Structured, password-safe result for every browser action."""

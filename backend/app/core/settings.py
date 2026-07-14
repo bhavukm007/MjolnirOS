@@ -41,6 +41,12 @@ class AppSettings(BaseSettings):
     log_level: str = "INFO"
     log_file: str = "logs/mjolniros.log"
     frontend_url: str = "http://localhost:5173"
+    development_cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+        ]
+    )
     default_model: str = "qwen2.5:3b"
     config_file: Path = Field(default=Path("config/app.json"))
     enabled_foundation_modules: list[str] = Field(default_factory=list)
@@ -55,8 +61,10 @@ class AppSettings(BaseSettings):
     voice_model_path: Path = Path("assets/models/vosk-model-small-en-us-0.15")
     voice_sample_rate: int = 16_000
     voice_wake_word: str = "Mjolnir"
+    voice_command_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     voice_tts_rate: int = 185
     voice_tts_volume: float = 1.0
+    voice_tts_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
     database_path: Path = Path("database/mjolniros.db")
     chroma_path: Path = Path("database/chroma")
     windows_search_root: Path = Path("C:/Users")
@@ -96,6 +104,12 @@ class AppSettings(BaseSettings):
     notion_oauth_redirect_uri: str = (
         "http://127.0.0.1:8000/api/v1/productivity/oauth/notion/callback"
     )
+
+    def cors_allowed_origins(self) -> list[str]:
+        """Return explicit development origins without widening production CORS."""
+        if self.environment.lower() == "development":
+            return list(dict.fromkeys([*self.development_cors_origins, self.frontend_url]))
+        return [self.frontend_url]
 
     def to_public_settings(self) -> PublicSettings:
         """Return frontend-safe settings."""

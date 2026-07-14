@@ -39,11 +39,19 @@ class OllamaClient:
         model: str,
         history: list[ChatMessage],
         message: str,
+        system_prompt: str | None = None,
     ) -> AsyncIterator[str]:
         """Yield text fragments from Ollama's newline-delimited chat stream."""
         request_body = {
             "model": model,
             "messages": [
+                {
+                    "role": "system",
+                    "content": system_prompt or (
+                        "You are Mjolnir, a concise local desktop assistant. "
+                        "Address the user naturally as Boss when it fits, without overusing it."
+                    ),
+                },
                 *[{"role": entry.role, "content": entry.content} for entry in history],
                 {"role": "user", "content": message},
             ],

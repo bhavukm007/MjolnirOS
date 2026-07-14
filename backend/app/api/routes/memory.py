@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.app.core.responses import ApiResponse
 from backend.app.core.settings import get_settings
-from backend.app.domain.memory import MemoryCreate, MemoryRecord, MemorySearch, PreferenceValue
+from backend.app.domain.memory import MemoryCategory, MemoryCreate, MemoryRecord, MemorySearch, PreferenceValue, UserProfile
 from backend.app.memory.store import MemoryStore
 
 router = APIRouter(prefix="/memory", tags=["memory"])
@@ -26,9 +26,22 @@ async def create_memory(memory: MemoryCreate) -> ApiResponse[MemoryRecord]:
 
 
 @router.get("", response_model=ApiResponse[list[MemoryRecord]])
-async def list_memories(memory_type: str | None = None) -> ApiResponse[list[MemoryRecord]]:
+async def list_memories(memory_type: str | None = None, category: MemoryCategory | None = None) -> ApiResponse[list[MemoryRecord]]:
     """List locally persisted memories."""
-    return ApiResponse(success=True, message="Memories loaded.", data=get_memory_store().list(memory_type))
+    return ApiResponse(success=True, message="Memories loaded.", data=get_memory_store().list(memory_type, category=category))
+
+
+@router.get("/profile", response_model=ApiResponse[UserProfile])
+async def get_profile() -> ApiResponse[UserProfile]:
+    """Return the current materialized local user profile."""
+    return ApiResponse(success=True, message="Profile loaded.", data=get_memory_store().profile())
+
+
+@router.delete("", response_model=ApiResponse[list[MemoryRecord]])
+async def forget_memory(query: str) -> ApiResponse[list[MemoryRecord]]:
+    """Soft-delete matching memories without erasing audit metadata."""
+    forgotten = get_memory_store().forget(query)
+    return ApiResponse(success=bool(forgotten), message="Memory forgotten." if forgotten else "No matching memory found.", data=forgotten)
 
 
 @router.get("/search", response_model=ApiResponse[MemorySearch])

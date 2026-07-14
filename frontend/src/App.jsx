@@ -493,22 +493,90 @@ function AssistantConsole() {
   const [state, setState] = useState("Voice checking");
   const [listening, setListening] = useState(false);
   const runtime = useRef(null);
-  useEffect(() => () => { runtime.current?.stop(); }, []);
-  async function send(message) {
+  useEffect(() => {
+    let active = true;
+    const voice = createVoiceRuntime();
+    runtime.current = voice;
+    void voice.start().then(async () => {
+      if (!active) { await voice.stop(); return; }
+    }).catch((error) => {
+      if (active && runtime.current === voice) {
+        setListening(false);
+        setState(error.message);
+      }
+    });
+    return () => {
+      active = false;
+      if (runtime.current === voice) runtime.current = null;
+      void voice.stop();
+    };
+  }, []);
+  function createVoiceRuntime() {
+    let voice;
+    voice = new VoiceRuntime({
+      apiBaseUrl: API_BASE_URL,
+      onCommand: (message, onVoicePhase) => send(message, { voice: true, onVoicePhase }),
+      onWake: async () => {
+        const response = await fetch(`${API_BASE_URL}/voice/speak?wait=true`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "Yes, Boss." }) });
+        if (!response.ok) throw new Error("Wake acknowledgement TTS failed.");
+      },
+      onState: (nextState) => {
+        if (runtime.current !== voice) return;
+        setListening(voice.listeningEnabled);
+        setState(nextState);
+      },
+      onInterruption: () => { if (!runtime.current?.capturePaused) void fetch(`${API_BASE_URL}/voice/speak`, { method: "DELETE" }); }
+    });
+    return voice;
+  }
+  async function send(message, { voice = false, onVoicePhase } = {}) {
     if (!message.trim()) return;
     setMessages((current) => [...current, { role: "You", text: message }, { role: "Mjolnir", text: "…" }]); setDraft("");
     try {
       const response = await fetch(`${API_BASE_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history: [] }) });
       const reader = response.body?.getReader(); const decoder = new TextDecoder(); let answer = "";
       while (reader) { const { done, value } = await reader.read(); if (done) break; decoder.decode(value).split("\n").filter(Boolean).forEach((line) => { const event = JSON.parse(line); if (event.type === "token") answer += event.content; }); }
-      setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: answer || "No response received." }]);
-      if (answer) await fetch(`${API_BASE_URL}/voice/speak`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: answer }) });
+      const addressedAnswer = addressBoss(answer || "No response received.");
+      setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: addressedAnswer }]);
+      {
+        onVoicePhase?.("TOOL_COMPLETION", { response_length: addressedAnswer.length });
+        onVoicePhase?.("TTS_START", { utterance: "command_response" });
+        runtime.current?.beginPlayback("assistant_reply_tts");
+        try {
+          const spokenText = addressedAnswer;
+          const speech = await fetch(`${API_BASE_URL}/voice/speak?wait=true`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: spokenText }) });
+          if (!speech.ok) {
+            const failure = await speech.json().catch(() => ({}));
+            throw new Error(failure.detail ?? "Assistant reply TTS failed.");
+          }
+        } catch (error) {
+          onVoicePhase?.("TTS_FAILURE", { error: error.message });
+          setState(`Speech failed: ${error.message}`);
+          // Speech is an output channel, not the source of the answer. Keep
+          // the successfully generated chat response visible if audio fails.
+        } finally {
+          runtime.current?.endPlayback("assistant_reply_tts_complete");
+          onVoicePhase?.("TTS_END", { utterance: "command_response" });
+        }
+      }
     } catch (error) { setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: error.message }]); }
   }
   async function toggleVoice() {
-    if (listening) { await runtime.current?.stop(); setListening(false); return; }
-    runtime.current = new VoiceRuntime({ apiBaseUrl: API_BASE_URL, onCommand: send, onState: setState, onInterruption: () => { void fetch(`${API_BASE_URL}/voice/speak`, { method: "DELETE" }); } });
-    try { await runtime.current.start(); setListening(true); } catch (error) { setState(error.message); }
+    try {
+      if (runtime.current?.listeningEnabled) { await runtime.current.pause(); return; }
+      if (!runtime.current) runtime.current = createVoiceRuntime();
+      await runtime.current.resume();
+    } catch (error) {
+      setListening(Boolean(runtime.current?.listeningEnabled));
+      setState(error.message);
+    }
   }
-  return <section className="rounded-md border border-cyan-400/30 bg-black/20 p-5 lg:col-span-2"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Voice Assistant</h2><p className="text-sm text-cyan-100">{state}</p></div><button className="rounded bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950" type="button" onClick={toggleVoice}>{listening ? "Stop listening" : "Start listening"}</button></div><div className="mt-4 max-h-48 space-y-2 overflow-auto text-sm">{messages.map((item, index) => <p key={index}><strong>{item.role}:</strong> {item.text}</p>)}</div><form className="mt-4 flex gap-2" onSubmit={(event) => { event.preventDefault(); void send(draft); }}><input className="min-w-0 flex-1 rounded border border-white/20 bg-black/30 px-3 py-2" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a command or say Mjolnir"/><button className="rounded border border-white/20 px-3 py-2" type="submit">Send</button></form></section>;
+  return <section className="rounded-md border border-cyan-400/30 bg-black/20 p-5 lg:col-span-2"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Voice Assistant</h2><p className="text-sm text-cyan-100">{state}</p></div><button className="rounded bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950" type="button" onClick={toggleVoice}>{listening ? "Pause Listening" : "Resume Listening"}</button></div><div className="mt-4 max-h-48 space-y-2 overflow-auto text-sm">{messages.map((item, index) => <p key={index}><strong>{item.role}:</strong> {item.text}</p>)}</div><form className="mt-4 flex gap-2" onSubmit={(event) => { event.preventDefault(); void send(draft); }}><input className="min-w-0 flex-1 rounded border border-white/20 bg-black/30 px-3 py-2" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a command or say Mjolnir"/><button className="rounded border border-white/20 px-3 py-2" type="submit">Send</button></form></section>;
+}
+
+function addressBoss(reply) {
+  if (/\bboss\b/i.test(reply)) return reply;
+  const trimmed = reply.trim();
+  if (!trimmed) return trimmed;
+  return `${trimmed.replace(/[.!?]+$/, "")}, Boss.`;
 }

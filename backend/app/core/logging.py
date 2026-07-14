@@ -43,7 +43,9 @@ def configure_logging(settings: AppSettings) -> None:
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
-    file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=3)
+    file_handler = RotatingFileHandler(
+        log_path, maxBytes=10 * 1024 * 1024, backupCount=5
+    )
     file_handler.setFormatter(formatter)
 
     root_logger.handlers.clear()

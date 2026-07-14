@@ -21,6 +21,12 @@ class UserSettings(BaseModel):
     quiet_hours_enabled: bool = False
     quiet_hours_start: str = Field(default="22:00", pattern=r"^\d{2}:\d{2}$")
     quiet_hours_end: str = Field(default="07:00", pattern=r"^\d{2}:\d{2}$")
+    preferred_browser: str = Field(
+        default="system", pattern="^(system|chrome|edge|firefox)$"
+    )
+    preferred_email_service: str = Field(
+        default="gmail", pattern="^(gmail|outlook|mail_app)$"
+    )
 
 
 class UserSettingsUpdate(BaseModel):
@@ -39,3 +45,9 @@ class UserSettingsUpdate(BaseModel):
     quiet_hours_enabled: bool | None = None
     quiet_hours_start: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
     quiet_hours_end: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    preferred_browser: str | None = Field(
+        default=None, pattern="^(system|chrome|edge|firefox)$"
+    )
+    preferred_email_service: str | None = Field(
+        default=None, pattern="^(gmail|outlook|mail_app)$"
+    )

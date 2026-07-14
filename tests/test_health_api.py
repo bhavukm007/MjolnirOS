@@ -40,3 +40,31 @@ def test_environment_settings_override_json_configuration(
         assert get_settings().default_model == "environment-model"
     finally:
         get_settings.cache_clear()
+
+
+def test_development_cors_allows_loopback_frontend_origins() -> None:
+    client = TestClient(create_app())
+    endpoints = ("/api/v1/health", "/api/v1/settings", "/api/v1/voice/health")
+
+    for origin in ("http://127.0.0.1:5173", "http://localhost:5173"):
+        for endpoint in endpoints:
+            response = client.get(endpoint, headers={"Origin": origin})
+            assert response.status_code == 200
+            assert response.headers["access-control-allow-origin"] == origin
+
+
+def test_production_cors_only_allows_configured_frontend() -> None:
+    settings = get_settings().model_copy(
+        update={"environment": "production", "frontend_url": "https://app.example.com"}
+    )
+    client = TestClient(create_app(settings))
+
+    allowed = client.get(
+        "/api/v1/health", headers={"Origin": "https://app.example.com"}
+    )
+    rejected = client.get(
+        "/api/v1/health", headers={"Origin": "http://127.0.0.1:5173"}
+    )
+
+    assert allowed.headers["access-control-allow-origin"] == "https://app.example.com"
+    assert "access-control-allow-origin" not in rejected.headers

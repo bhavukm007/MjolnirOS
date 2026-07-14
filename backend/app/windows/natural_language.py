@@ -9,6 +9,7 @@ def execute_natural_command(command: str, controller: WindowsController) -> Wind
     if text.startswith("open explorer"): return controller.execute("open_explorer",{},False)
     if text.startswith("open task manager"): return controller.execute("open_task_manager",{},False)
     if text.startswith("open "): return controller.execute("open_application",{"name":command[5:].strip()},False)
+    if text.startswith("launch "): return controller.execute("open_application",{"name":command[7:].strip()},False)
     if text.startswith("close "): return controller.execute("close_application",{"name":command[6:].strip()},False)
     if text.startswith("search for "): return controller.execute("search_files",{"query":command[11:].strip()},False)
     return None
