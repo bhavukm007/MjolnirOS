@@ -35,8 +35,8 @@ function pcm16(samples, sampleRate) {
 
 /** Browser microphone bridge for the backend's continuous Vosk session. */
 export class VoiceRuntime {
-  constructor({ apiBaseUrl, onCommand, onWake, onState, onInterruption }) {
-    Object.assign(this, { apiBaseUrl, onCommand, onWake, onState, onInterruption, sessionId: null, stream: null, mediaRecorder: null, audioContext: null, source: null, processor: null, mutedOutput: null, chain: Promise.resolve(), releasePromise: null, interrupted: false, capturePaused: false, playbackCount: 0, manuallyPaused: false, pipelineBusy: false, resumeVoiceState: "WAITING_FOR_WAKE", audioGeneration: 0, frameCount: 0, lastDebugAt: 0, voiceState: "IDLE" });
+  constructor({ apiBaseUrl, onCommand, onWake, onState, onInterruption, onAmplitude, onVoiceState }) {
+    Object.assign(this, { apiBaseUrl, onCommand, onWake, onState, onInterruption, onAmplitude, onVoiceState, sessionId: null, stream: null, mediaRecorder: null, audioContext: null, source: null, processor: null, mutedOutput: null, chain: Promise.resolve(), releasePromise: null, interrupted: false, capturePaused: false, playbackCount: 0, manuallyPaused: false, pipelineBusy: false, resumeVoiceState: "WAITING_FOR_WAKE", audioGeneration: 0, frameCount: 0, lastDebugAt: 0, voiceState: "IDLE" });
   }
   get sessionActive() { return Boolean(this.sessionId); }
   get paused() { return this.manuallyPaused; }
@@ -155,6 +155,7 @@ export class VoiceRuntime {
     if (this.capturePaused) return;
     this.frameCount += 1;
     const peak = Math.max(...samples.map(Math.abs));
+    this.onAmplitude?.(peak);
     if (performance.now() - this.lastDebugAt > 1000) {
       this.lastDebugAt = performance.now();
       voiceLog("DEBUG", "voice_audio_packet", { frames: this.frameCount, samples: samples.length, peak });
@@ -316,6 +317,7 @@ export class VoiceRuntime {
   }
   transition(state, detail = {}) {
     this.voiceState = state;
+    this.onVoiceState?.(state, detail);
     voiceState(state, detail);
   }
   handlePipelineEvent(event, detail = {}) {
