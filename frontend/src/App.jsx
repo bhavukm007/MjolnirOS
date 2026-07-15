@@ -4,8 +4,10 @@ import PluginManager from "./PluginManager.jsx";
 import ProductivityPlugins from "./ProductivityPlugins.jsx";
 import CommunicationPlugins from "./CommunicationPlugins.jsx";
 import SettingsPanel from "./SettingsPanel.jsx";
+import { CoreDashboard } from "./components/core/index.js";
 import { AppShell } from "./components/shell/index.js";
 import { GlassCard } from "./components/ui/index.js";
+import { useAssistantState } from "./state/AssistantStateProvider.jsx";
 import { VoiceRuntime } from "./voice_runtime.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
@@ -270,6 +272,7 @@ export default function App() {
           <div><p className="os-eyebrow">Private · Local · Ready</p><h2>{greeting()}, Boss.</h2><p>Mjolnir is standing by. What would you like to accomplish?</p></div>
           <div className="dashboard-command-hint"><span>⌘</span><div><strong>Quick command</strong><small>Press Ctrl + K from anywhere</small></div></div>
         </section>
+        <CoreDashboard connectionState={connectionState} onNavigate={setActiveView} />
         <section className="grid gap-4 md:grid-cols-4">
           <StatusTile label="Backend" value={health.status} />
           <StatusTile label="Environment" value={health.environment} />
@@ -488,6 +491,7 @@ function RuntimeRow({ label, value }) {
 }
 
 function AssistantConsole() {
+  const { acceptVoiceState, setAudioLevel, setState: setAssistantState } = useAssistantState();
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState([]);
   const [state, setState] = useState("Voice checking");
@@ -526,18 +530,22 @@ function AssistantConsole() {
         setListening(voice.listeningEnabled);
         setState(nextState);
       },
+      onAmplitude: setAudioLevel,
+      onVoiceState: acceptVoiceState,
       onInterruption: () => { if (!runtime.current?.capturePaused) void fetch(`${API_BASE_URL}/voice/speak`, { method: "DELETE" }); }
     });
     return voice;
   }
   async function send(message, { voice = false, onVoicePhase } = {}) {
     if (!message.trim()) return;
+    setAssistantState("thinking");
     setMessages((current) => [...current, { role: "You", text: message }, { role: "Mjolnir", text: "…" }]); setDraft("");
     try {
       const response = await fetch(`${API_BASE_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history: [] }) });
       const reader = response.body?.getReader(); const decoder = new TextDecoder(); let answer = "";
       while (reader) { const { done, value } = await reader.read(); if (done) break; decoder.decode(value).split("\n").filter(Boolean).forEach((line) => { const event = JSON.parse(line); if (event.type === "token") answer += event.content; }); }
       const addressedAnswer = addressBoss(answer || "No response received.");
+      setAssistantState("speaking");
       setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: addressedAnswer }]);
       {
         onVoicePhase?.("TOOL_COMPLETION", { response_length: addressedAnswer.length });
@@ -559,9 +567,10 @@ function AssistantConsole() {
         } finally {
           runtime.current?.endPlayback("assistant_reply_tts_complete");
           onVoicePhase?.("TTS_END", { utterance: "command_response" });
+          setAssistantState(runtime.current?.listeningEnabled ? "idle" : "paused");
         }
       }
-    } catch (error) { setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: error.message }]); }
+    } catch (error) { setAssistantState("error"); setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: error.message }]); }
   }
   async function toggleVoice() {
     try {
