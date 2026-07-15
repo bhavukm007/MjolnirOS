@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-import PluginManager from "./PluginManager.jsx";
-import ProductivityPlugins from "./ProductivityPlugins.jsx";
-import CommunicationPlugins from "./CommunicationPlugins.jsx";
-import SettingsPanel from "./SettingsPanel.jsx";
-import { VoiceRuntime } from "./voice_runtime.js";
+import { ChatPage, ConversationProvider } from "./components/chat/index.js";
+import { CoreDashboard } from "./components/core/index.js";
+import { AppShell } from "./components/shell/index.js";
+import { GlassCard } from "./components/ui/index.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
+const PluginManager = lazy(() => import("./PluginManager.jsx"));
+const ProductivityPlugins = lazy(() => import("./ProductivityPlugins.jsx"));
+const CommunicationPlugins = lazy(() => import("./CommunicationPlugins.jsx"));
+const SettingsPanel = lazy(() => import("./SettingsPanel.jsx"));
 
 const initialHealth = {
   status: "starting",
@@ -50,7 +53,14 @@ export default function App() {
   const [learningKind, setLearningKind] = useState("application");
   const [learningValue, setLearningValue] = useState("");
   const [learningError, setLearningError] = useState("");
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() => window.localStorage?.getItem("mjolnir.lastView") || "dashboard");
+
+  useEffect(() => {
+    window.localStorage?.setItem("mjolnir.lastView", activeView);
+    window.mjolniros?.saveNavigationState?.(activeView);
+  }, [activeView]);
+
+  useEffect(() => window.mjolniros?.onNavigate?.((view) => setActiveView(view)), []);
 
   useEffect(() => {
     let active = true;
@@ -257,30 +267,14 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-[#090b10] text-slate-100">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-normal">{health.app_name}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Local-first desktop operating assistant foundation.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-4 py-3">
-            <span className={`h-2.5 w-2.5 rounded-full ${connectionState === "online" ? "bg-emerald-400" : "bg-amber-400"}`} />
-            <span className="text-sm font-medium capitalize">{connectionState}</span>
-          </div>
-        </header>
-
-        <nav aria-label="Application navigation" className="flex gap-2">
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "dashboard" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("dashboard")} type="button">Dashboard</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "plugins" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("plugins")} type="button">Plugin Manager</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "productivity" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("productivity")} type="button">Productivity</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "communication" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("communication")} type="button">Communication</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "settings" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("settings")} type="button">Settings</button>
-        </nav>
-
-        {activeView === "dashboard" ? <>
+    <ConversationProvider apiBaseUrl={API_BASE_URL}>
+    <AppShell activeView={activeView} connectionState={connectionState} health={health} moduleCount={moduleCount} onNavigate={setActiveView}>
+        {activeView === "dashboard" ? <div className="os-page-enter space-y-6">
+        <section className="dashboard-welcome">
+          <div><p className="os-eyebrow">Private · Local · Ready</p><h2>{greeting()}, Boss.</h2><p>Mjolnir is standing by. What would you like to accomplish?</p></div>
+          <div className="dashboard-command-hint"><span>⌘</span><div><strong>Quick command</strong><small>Press Ctrl + K from anywhere</small></div></div>
+        </section>
+        <CoreDashboard connectionState={connectionState} conversation={<ChatPage compact />} />
         <section className="grid gap-4 md:grid-cols-4">
           <StatusTile label="Backend" value={health.status} />
           <StatusTile label="Environment" value={health.environment} />
@@ -289,8 +283,7 @@ export default function App() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <AssistantConsole />
-          <div className="rounded-md border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
+          <GlassCard className="p-5">
             <h2 className="text-lg font-semibold">Foundation Modules</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {health.modules.map((moduleName) => (
@@ -300,9 +293,9 @@ export default function App() {
                 </div>
               ))}
             </div>
-          </div>
+          </GlassCard>
 
-          <div className="rounded-md border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
+          <GlassCard className="p-5">
             <h2 className="text-lg font-semibold">Runtime</h2>
             <dl className="mt-5 space-y-4 text-sm">
               <RuntimeRow label="API Prefix" value={settings?.api_prefix ?? "/api/v1"} />
@@ -310,7 +303,7 @@ export default function App() {
               <RuntimeRow label="Config" value={settings ? "Loaded" : "Pending"} />
               <RuntimeRow label="Logging" value="Structured JSON" />
             </dl>
-          </div>
+          </GlassCard>
 
           <section className="grid gap-6 lg:grid-cols-2">
             <UploadPanel
@@ -357,10 +350,26 @@ export default function App() {
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
         </section>
-        </> : activeView === "plugins" ? <PluginManager request={fetchJson} /> : activeView === "productivity" ? <ProductivityPlugins request={fetchJson} /> : activeView === "communication" ? <CommunicationPlugins request={fetchJson} /> : <SettingsPanel request={fetchJson} />}
-      </section>
-    </main>
+        </div> : activeView === "chat" ? <div className="voice-runtime-host"><ChatPage /></div> : activeView === "plugins" ? <LazyPage><PluginManager request={fetchJson} /></LazyPage> : activeView === "productivity" ? <LazyPage><ProductivityPlugins request={fetchJson} /></LazyPage> : activeView === "communication" ? <LazyPage><CommunicationPlugins request={fetchJson} /></LazyPage> : activeView === "settings" ? <LazyPage><SettingsPanel request={fetchJson} /></LazyPage> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
+    </AppShell>
+    </ConversationProvider>
   );
+}
+
+function LazyPage({ children }) {
+  return <Suspense fallback={<div className="os-loading" role="status"><span />Loading workspace…</div>}><div className="os-page-enter">{children}</div></Suspense>;
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function PlaceholderPage({ view, onNavigate }) {
+  const labels = { chat: "Chat", memory: "Memory", browser: "Browser", vision: "Vision", automation: "Automation" };
+  return <GlassCard className="os-empty-page os-page-enter"><span className="os-eyebrow">Workspace</span><h2>{labels[view] ?? view}</h2><p>This workspace is ready for the next redesign phase. Existing tools remain available on the Dashboard.</p><button className="os-button os-button--primary os-button--md" onClick={() => onNavigate("dashboard")} type="button"><span className="os-button__content">Return to Dashboard</span></button></GlassCard>;
 }
 
 function LearningPanel({ learning, kind, value, error, onKindChange, onValueChange, onLoad, onRecord, onDecide }) {
@@ -485,100 +494,4 @@ function RuntimeRow({ label, value }) {
       <dd className="text-right font-medium text-slate-100">{value}</dd>
     </div>
   );
-}
-
-function AssistantConsole() {
-  const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [state, setState] = useState("Voice checking");
-  const [listening, setListening] = useState(false);
-  const runtime = useRef(null);
-  const speechRequest = useRef(0);
-  useEffect(() => {
-    let active = true;
-    const voice = createVoiceRuntime();
-    runtime.current = voice;
-    void voice.start().then(async () => {
-      if (!active) { await voice.stop(); return; }
-    }).catch((error) => {
-      if (active && runtime.current === voice) {
-        setListening(false);
-        setState(error.message);
-      }
-    });
-    return () => {
-      active = false;
-      if (runtime.current === voice) runtime.current = null;
-      void voice.stop();
-    };
-  }, []);
-  function createVoiceRuntime() {
-    let voice;
-    voice = new VoiceRuntime({
-      apiBaseUrl: API_BASE_URL,
-      onCommand: (message, onVoicePhase) => send(message, { voice: true, onVoicePhase }),
-      onWake: async () => {
-        const response = await fetch(`${API_BASE_URL}/voice/speak?wait=true`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "Yes, Boss." }) });
-        if (!response.ok) throw new Error("Wake acknowledgement TTS failed.");
-      },
-      onState: (nextState) => {
-        if (runtime.current !== voice) return;
-        setListening(voice.listeningEnabled);
-        setState(nextState);
-      },
-      onInterruption: () => { if (!runtime.current?.capturePaused) void fetch(`${API_BASE_URL}/voice/speak`, { method: "DELETE" }); }
-    });
-    return voice;
-  }
-  async function send(message, { voice = false, onVoicePhase } = {}) {
-    if (!message.trim()) return;
-    setMessages((current) => [...current, { role: "You", text: message }, { role: "Mjolnir", text: "…" }]); setDraft("");
-    try {
-      const response = await fetch(`${API_BASE_URL}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history: [] }) });
-      const reader = response.body?.getReader(); const decoder = new TextDecoder(); let answer = "";
-      while (reader) { const { done, value } = await reader.read(); if (done) break; decoder.decode(value).split("\n").filter(Boolean).forEach((line) => { const event = JSON.parse(line); if (event.type === "token") answer += event.content; }); }
-      const addressedAnswer = addressBoss(answer || "No response received.");
-      setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: addressedAnswer }]);
-      {
-        onVoicePhase?.("TOOL_COMPLETION", { response_length: addressedAnswer.length });
-        onVoicePhase?.("TTS_START", { utterance: "command_response" });
-        const requestId = ++speechRequest.current;
-        runtime.current?.beginPlayback("assistant_reply_tts");
-        try {
-          const spokenText = addressedAnswer;
-          const speech = await fetch(`${API_BASE_URL}/voice/speak?wait=true`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: spokenText }) });
-          if (!speech.ok) {
-            const failure = await speech.json().catch(() => ({}));
-            throw new Error(failure.detail ?? "Assistant reply TTS failed.");
-          }
-        } catch (error) {
-          onVoicePhase?.("TTS_FAILURE", { error: error.message });
-          if (requestId === speechRequest.current) setState(`Speech failed: ${error.message}`);
-          // Speech is an output channel, not the source of the answer. Keep
-          // the successfully generated chat response visible if audio fails.
-        } finally {
-          runtime.current?.endPlayback("assistant_reply_tts_complete");
-          onVoicePhase?.("TTS_END", { utterance: "command_response" });
-        }
-      }
-    } catch (error) { setMessages((current) => [...current.slice(0, -1), { role: "Mjolnir", text: error.message }]); }
-  }
-  async function toggleVoice() {
-    try {
-      if (runtime.current?.listeningEnabled) { await runtime.current.pause(); return; }
-      if (!runtime.current) runtime.current = createVoiceRuntime();
-      await runtime.current.resume();
-    } catch (error) {
-      setListening(Boolean(runtime.current?.listeningEnabled));
-      setState(error.message);
-    }
-  }
-  return <section className="rounded-md border border-cyan-400/30 bg-black/20 p-5 lg:col-span-2"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Voice Assistant</h2><p className="text-sm text-cyan-100">{state}</p></div><button className="rounded bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950" type="button" onClick={toggleVoice}>{listening ? "Pause Listening" : "Resume Listening"}</button></div><div className="mt-4 max-h-48 space-y-2 overflow-auto text-sm">{messages.map((item, index) => <p key={index}><strong>{item.role}:</strong> {item.text}</p>)}</div><form className="mt-4 flex gap-2" onSubmit={(event) => { event.preventDefault(); void send(draft); }}><input className="min-w-0 flex-1 rounded border border-white/20 bg-black/30 px-3 py-2" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a command or say Mjolnir"/><button className="rounded border border-white/20 px-3 py-2" type="submit">Send</button></form></section>;
-}
-
-function addressBoss(reply) {
-  if (/\bboss\b/i.test(reply)) return reply;
-  const trimmed = reply.trim();
-  if (!trimmed) return trimmed;
-  return `${trimmed.replace(/[.!?]+$/, "")}, Boss.`;
 }

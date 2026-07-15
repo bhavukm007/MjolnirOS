@@ -84,8 +84,8 @@ describe("VoiceRuntime", () => {
     info.mockRestore();
   });
 
-  test("inline wake command skips acknowledgement and executes immediately", async () => {
-    vi.spyOn(console, "info").mockImplementation(() => {});
+  test("wake detection acknowledges and always waits for a separate command", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const onWake = vi.fn();
     const onCommand = vi.fn().mockResolvedValue(undefined);
     const runtime = new VoiceRuntime({
@@ -93,18 +93,31 @@ describe("VoiceRuntime", () => {
     });
     runtime.sessionId = "voice-session";
     runtime.audioContext = { sampleRate: 16000 };
-    runtime.request = vi.fn((path) => Promise.resolve(
-      path.endsWith("/complete")
-        ? { state: "listening_for_wake_word" }
-        : { state: "processing_command", wake_word_detected: true, command: "open chrome" }
-    ));
+    runtime.request = vi.fn().mockResolvedValue({
+      state: "listening_for_command", wake_word_detected: true
+    });
 
     runtime.process(samples());
     await runtime.chain;
 
-    expect(onWake).not.toHaveBeenCalled();
-    expect(onCommand).toHaveBeenCalledWith("open chrome", expect.any(Function));
-    expect(runtime.voiceState).toBe("WAITING_FOR_WAKE");
+    expect(onWake).toHaveBeenCalledOnce();
+    expect(onCommand).not.toHaveBeenCalled();
+    expect(runtime.voiceState).toBe("LISTENING_FOR_COMMAND");
+    info.mockRestore();
+  });
+
+  test("idle microphone audio does not trigger interruption handling", () => {
+    const onInterruption = vi.fn();
+    const runtime = new VoiceRuntime({
+      apiBaseUrl: "/api/v1", onCommand: vi.fn(), onWake: vi.fn(), onState: vi.fn(), onInterruption
+    });
+    runtime.sessionId = "voice-session";
+    runtime.audioContext = { sampleRate: 16000 };
+    runtime.request = vi.fn().mockResolvedValue({ state: "listening_for_wake_word" });
+
+    runtime.process(new Float32Array([0.2, 0.15, 0.1]));
+
+    expect(onInterruption).not.toHaveBeenCalled();
   });
 
   test("reflects a backend conversation timeout as wake listening", async () => {

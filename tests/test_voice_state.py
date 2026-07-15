@@ -90,6 +90,15 @@ class CountingRecognizer:
         self.reset_count += 1
 
 
+class CountingWakeRecognizer(SilentRecognizer):
+    def __init__(self) -> None:
+        self.accept_count = 0
+
+    def AcceptWaveform(self, _audio: bytes) -> bool:
+        self.accept_count += 1
+        return False
+
+
 def test_command_stays_processing_until_pipeline_completes() -> None:
     session = VoskRecognitionSession(FakeRecognizer(), WakeWordDetector("Mjolnir"))
 
@@ -130,13 +139,12 @@ def test_constrained_recognizer_recovers_short_standalone_wake_word() -> None:
         wake_recognizer=wake,
     )
 
-    pending = session.accept_audio(b"short wake PCM")
-    result = session.accept_audio(b"trailing silence")
+    result = session.accept_audio(b"short wake PCM")
 
-    assert not pending.wake_word_detected
     assert result.wake_word_detected
     assert result.state is VoiceState.LISTENING_FOR_COMMAND
-    assert result.transcript == "me on it"
+    assert result.transcript == ""
+    assert full.calls == 0
     assert wake.reset
 
 
@@ -169,41 +177,40 @@ def test_common_vosk_wake_variants_are_detected(transcript: str) -> None:
     assert result.state is VoiceState.LISTENING_FOR_COMMAND
 
 
-def test_wake_utterance_can_include_an_inline_command() -> None:
+def test_wake_utterance_never_becomes_an_inline_command() -> None:
     result = VoskRecognitionSession(
         FakeRecognizer(), WakeWordDetector("Mjolnir")
     )._process_transcript("hello me on it open chrome")
 
     assert result.wake_word_detected
-    assert result.command == "open chrome"
-    assert result.state is VoiceState.PROCESSING_COMMAND
+    assert result.command is None
+    assert result.state is VoiceState.LISTENING_FOR_COMMAND
 
 
 @pytest.mark.parametrize(
-    ("transcript", "command"),
+    "transcript",
     (
-        ("meonir open chrome", "open chrome"),
-        ("Meonir tell me a joke", "tell me a joke"),
-        ("wake up meonir open chrome", "open chrome"),
+        "meonir open chrome",
+        "Meonir tell me a joke",
+        "wake up meonir open chrome",
     ),
 )
-def test_supported_inline_wake_forms_execute_from_same_final_transcript(
-    transcript: str, command: str
-) -> None:
+def test_supported_wake_forms_require_a_separate_command(transcript: str) -> None:
     result = VoskRecognitionSession(
         FakeRecognizer(), WakeWordDetector("Mjolnir")
     )._process_transcript(transcript)
 
     assert result.wake_word_detected
-    assert result.command == command
-    assert result.state is VoiceState.PROCESSING_COMMAND
+    assert result.command is None
+    assert result.state is VoiceState.LISTENING_FOR_COMMAND
 
 
-def test_inline_command_corrects_common_vosk_open_inflection() -> None:
-    result = VoskRecognitionSession(
-        FakeRecognizer(), WakeWordDetector("Mjolnir")
-    )._process_transcript("me on it opened chrome")
+def test_command_after_wake_corrects_common_vosk_open_inflection() -> None:
+    session = VoskRecognitionSession(FakeRecognizer(), WakeWordDetector("Mjolnir"))
+    wake = session._process_transcript("me on it")
+    result = session._process_transcript("opened chrome")
 
+    assert wake.command is None
     assert result.command == "open chrome"
 
 
@@ -272,7 +279,7 @@ def test_live_vosk_variant_logs_every_wake_detection_stage(caplog) -> None:
     assert states == ["WAKE_DETECTED", "LISTENING_FOR_COMMAND"]
 
 
-def test_partial_callback_logs_before_wake_transition(caplog) -> None:
+def test_idle_partial_audio_is_not_exposed_as_a_transcript(caplog) -> None:
     caplog.set_level(logging.DEBUG, logger="mjolniros.voice")
     session = VoskRecognitionSession(
         PartialWakeRecognizer(), WakeWordDetector("Mjolnir")
@@ -282,9 +289,8 @@ def test_partial_callback_logs_before_wake_transition(caplog) -> None:
 
     events = [record.message for record in caplog.records]
     assert not result.wake_word_detected
-    assert events.index("voice_recognizer_pcm_received") < events.index(
-        "voice_vosk_partial"
-    )
+    assert "voice_recognizer_pcm_received" in events
+    assert "voice_vosk_partial" not in events
     assert "voice_wake_normalized" not in events
 
 
@@ -311,6 +317,28 @@ def test_recognizer_resets_before_follow_up_window() -> None:
     session.complete_command()
 
     assert recognizer.reset_count == 2
+
+
+def test_completed_command_discards_audio_during_wake_cooldown(monkeypatch) -> None:
+    now = [10.0]
+    monkeypatch.setattr("backend.app.voice.recognizer.monotonic", lambda: now[0])
+    wake = CountingWakeRecognizer()
+    session = VoskRecognitionSession(
+        CountingRecognizer(),
+        WakeWordDetector("Mjolnir"),
+        wake_recognizer=wake,
+        wake_cooldown_seconds=1.0,
+    )
+    session._process_transcript("hello meonir")
+    session._process_transcript("open chrome")
+    session.complete_command()
+
+    assert session.accept_audio(b"stale response audio").state is VoiceState.LISTENING_FOR_WAKE_WORD
+    assert wake.accept_count == 0
+
+    now[0] = 11.01
+    session.accept_audio(b"fresh wake audio")
+    assert wake.accept_count == 1
 
 
 class InterruptibleEngine:
