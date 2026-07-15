@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-import { ChatPage } from "./components/chat/index.js";
+import { ChatPage, ConversationProvider } from "./components/chat/index.js";
 import { CoreDashboard } from "./components/core/index.js";
 import { AppShell } from "./components/shell/index.js";
 import { GlassCard } from "./components/ui/index.js";
@@ -267,13 +267,14 @@ export default function App() {
   }
 
   return (
+    <ConversationProvider apiBaseUrl={API_BASE_URL}>
     <AppShell activeView={activeView} connectionState={connectionState} health={health} moduleCount={moduleCount} onNavigate={setActiveView}>
         {activeView === "dashboard" ? <div className="os-page-enter space-y-6">
         <section className="dashboard-welcome">
           <div><p className="os-eyebrow">Private · Local · Ready</p><h2>{greeting()}, Boss.</h2><p>Mjolnir is standing by. What would you like to accomplish?</p></div>
           <div className="dashboard-command-hint"><span>⌘</span><div><strong>Quick command</strong><small>Press Ctrl + K from anywhere</small></div></div>
         </section>
-        <CoreDashboard connectionState={connectionState} onNavigate={setActiveView} />
+        <CoreDashboard connectionState={connectionState} conversation={<ChatPage compact />} />
         <section className="grid gap-4 md:grid-cols-4">
           <StatusTile label="Backend" value={health.status} />
           <StatusTile label="Environment" value={health.environment} />
@@ -349,11 +350,9 @@ export default function App() {
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
         </section>
-        </div> : activeView === "chat" ? null : activeView === "plugins" ? <LazyPage><PluginManager request={fetchJson} /></LazyPage> : activeView === "productivity" ? <LazyPage><ProductivityPlugins request={fetchJson} /></LazyPage> : activeView === "communication" ? <LazyPage><CommunicationPlugins request={fetchJson} /></LazyPage> : activeView === "settings" ? <LazyPage><SettingsPanel request={fetchJson} /></LazyPage> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
-        <div className={activeView === "dashboard" || activeView === "chat" ? "voice-runtime-host" : "voice-runtime-host voice-runtime-host--hidden"}>
-          <ChatPage apiBaseUrl={API_BASE_URL} compact={activeView === "dashboard"} />
-        </div>
+        </div> : activeView === "chat" ? <div className="voice-runtime-host"><ChatPage /></div> : activeView === "plugins" ? <LazyPage><PluginManager request={fetchJson} /></LazyPage> : activeView === "productivity" ? <LazyPage><ProductivityPlugins request={fetchJson} /></LazyPage> : activeView === "communication" ? <LazyPage><CommunicationPlugins request={fetchJson} /></LazyPage> : activeView === "settings" ? <LazyPage><SettingsPanel request={fetchJson} /></LazyPage> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
     </AppShell>
+    </ConversationProvider>
   );
 }
 

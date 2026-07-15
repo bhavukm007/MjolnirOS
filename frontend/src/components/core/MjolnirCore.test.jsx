@@ -20,7 +20,9 @@ describe("MjolnirCore", () => {
   });
 
   test("offline connection overrides the animated state", () => {
-    render(<AssistantStateProvider><MjolnirCore connectionState="offline" /></AssistantStateProvider>);
+    const { container } = render(<AssistantStateProvider><MjolnirCore connectionState="offline" /></AssistantStateProvider>);
     expect(screen.getByRole("img", { name: "Mjolnir Core: Offline" })).toHaveClass("mjolnir-core--offline");
+    expect(container.querySelector(".core-render-fallback")).toBeInTheDocument();
+    expect(container.querySelector("svg")).not.toBeInTheDocument();
   });
 });

@@ -160,7 +160,7 @@ export class VoiceRuntime {
       this.lastDebugAt = performance.now();
       voiceLog("DEBUG", "voice_audio_packet", { frames: this.frameCount, samples: samples.length, peak });
     }
-    if (peak > 0.08 && !this.interrupted) { this.interrupted = true; this.onInterruption(); window.setTimeout(() => { this.interrupted = false; }, 700); }
+    if (this.playbackCount > 0 && peak > 0.08 && !this.interrupted) { this.interrupted = true; this.onInterruption(); window.setTimeout(() => { this.interrupted = false; }, 700); }
     const audio_base64 = base64(pcm16(samples, this.audioContext.sampleRate));
     const generation = this.audioGeneration;
     this.chain = this.chain.then(async () => {
@@ -179,16 +179,10 @@ export class VoiceRuntime {
         return;
       }
       if (result.wake_word_detected) {
-        // AudioWorklet callbacks can enqueue several PCM requests before the
-        // wake response arrives. Invalidate that pre-wake tail so it cannot be
-        // finalized a second time as the command utterance.
+        // Invalidate every queued idle frame. The wake utterance is never
+        // eligible to become the command that follows it.
         this.audioGeneration += 1;
         this.transition("WAKE_DETECTED");
-        // Inline commands already contain the complete request and must execute
-        // without waiting for a second utterance or wake acknowledgement.
-        if (result.command) {
-          voiceLog("INFO", "voice_inline_command_ready", { command: result.command });
-        } else {
         // Pause capture for the actual acknowledgement duration so its speaker
         // audio never enters the command recognizer.
         this.pipelineBusy = true;
@@ -205,8 +199,7 @@ export class VoiceRuntime {
           this.pipelineBusy = false;
           this.capturePaused = this.manuallyPaused;
           if (!this.capturePaused) voiceLog("INFO", "voice_microphone_resumed", { reason: "tts_complete" });
-          if (!result.command) this.showCommandListening();
-        }
+          this.showCommandListening();
         }
       }
       if (result.command) {
