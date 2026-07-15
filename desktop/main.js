@@ -21,11 +21,6 @@ let listeningBeforeSuspend = false;
 let assistantState = "idle";
 const ownsApplicationInstance = app.requestSingleInstanceLock();
 
-app.disableHardwareAcceleration();
-app.commandLine.appendSwitch("disable-gpu");
-app.commandLine.appendSwitch("disable-gpu-compositing");
-app.commandLine.appendSwitch("in-process-gpu");
-
 // Keep Chromium's profile/cache beside the application data.  The default
 // profile can be inaccessible when MjolnirOS is launched by a Windows startup
 // task or another user context, which prevents its renderer from starting.
@@ -73,9 +68,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      // Wake-word capture is an application service. Chromium must not
-      // throttle its ScriptProcessor while this window is hidden in the tray.
-      backgroundThrottling: false
+      backgroundThrottling: true
     }
   });
 

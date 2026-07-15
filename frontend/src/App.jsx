@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
-import PluginManager from "./PluginManager.jsx";
-import ProductivityPlugins from "./ProductivityPlugins.jsx";
-import CommunicationPlugins from "./CommunicationPlugins.jsx";
-import SettingsPanel from "./SettingsPanel.jsx";
 import { ChatPage } from "./components/chat/index.js";
 import { CoreDashboard } from "./components/core/index.js";
 import { AppShell } from "./components/shell/index.js";
 import { GlassCard } from "./components/ui/index.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
+const PluginManager = lazy(() => import("./PluginManager.jsx"));
+const ProductivityPlugins = lazy(() => import("./ProductivityPlugins.jsx"));
+const CommunicationPlugins = lazy(() => import("./CommunicationPlugins.jsx"));
+const SettingsPanel = lazy(() => import("./SettingsPanel.jsx"));
 
 const initialHealth = {
   status: "starting",
@@ -349,12 +349,16 @@ export default function App() {
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
         </section>
-        </div> : activeView === "chat" ? null : activeView === "plugins" ? <div className="os-page-enter"><PluginManager request={fetchJson} /></div> : activeView === "productivity" ? <div className="os-page-enter"><ProductivityPlugins request={fetchJson} /></div> : activeView === "communication" ? <div className="os-page-enter"><CommunicationPlugins request={fetchJson} /></div> : activeView === "settings" ? <div className="os-page-enter"><SettingsPanel request={fetchJson} /></div> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
+        </div> : activeView === "chat" ? null : activeView === "plugins" ? <LazyPage><PluginManager request={fetchJson} /></LazyPage> : activeView === "productivity" ? <LazyPage><ProductivityPlugins request={fetchJson} /></LazyPage> : activeView === "communication" ? <LazyPage><CommunicationPlugins request={fetchJson} /></LazyPage> : activeView === "settings" ? <LazyPage><SettingsPanel request={fetchJson} /></LazyPage> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
         <div className={activeView === "dashboard" || activeView === "chat" ? "voice-runtime-host" : "voice-runtime-host voice-runtime-host--hidden"}>
           <ChatPage apiBaseUrl={API_BASE_URL} compact={activeView === "dashboard"} />
         </div>
     </AppShell>
   );
+}
+
+function LazyPage({ children }) {
+  return <Suspense fallback={<div className="os-loading" role="status"><span />Loading workspace…</div>}><div className="os-page-enter">{children}</div></Suspense>;
 }
 
 function greeting() {

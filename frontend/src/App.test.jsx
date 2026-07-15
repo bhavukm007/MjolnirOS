@@ -76,6 +76,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Sync" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    expect(global.fetch.mock.calls.filter(([url, options]) => url.includes("/voice/sessions") && options?.method === "POST")).toHaveLength(1);
     fireEvent.change(screen.getByPlaceholderText("Type a command or say Mjolnir"), { target: { value: "typed command" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => expect(screen.getByText("Done, Boss.")).toBeInTheDocument());
