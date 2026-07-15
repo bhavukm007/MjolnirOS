@@ -1,11 +1,16 @@
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
 .venv/
 venv/
 env/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.hypothesis/
+.tox/
+.nox/
+*.egg-info/
 
 # Environment
 .env
@@ -14,11 +19,20 @@ env/
 logs/
 *.log
 
-# VS Code
+# IDEs
 .vscode/
+.idea/
+.vs/
+*.suo
+*.user
+*.code-workspace
 
 # Node
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Electron
 dist/
@@ -30,12 +44,22 @@ Thumbs.db
 
 # Testing
 .pytest_cache/
-.pytest_tmp/
+.pytest_tmp*/
 .coverage
 htmlcov/
+coverage.xml
+test-results/
+playwright-report/
+blob-report/
+trace.zip
+*.webm
 
 # Database
 *.db
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
 database/documents/
 database/automation/
 database/learning/
@@ -54,6 +78,9 @@ plugins/*/
 # Temporary
 *.tmp
 *.temp
+.tmp/
+tmp/
+temp/
 
 # AI Models
 assets/models/
@@ -77,8 +104,3 @@ database/*.db-wal
 
 # Browser screenshots
 assets/browser_screenshots/
-
-# Temporary pytest folders
-.pytest_tmp_browser/
-.pytest_tmp_e2e_fixes/
-.pytest_tmp_website_resolver/
