@@ -99,8 +99,8 @@ def main() -> None:
     message = json.dumps(arguments.text)
     expression = f"""
     (() => {{
-      const input = document.querySelector('input[placeholder="Type a command or say Mjolnir"]');
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, {message});
+      const input = document.querySelector('textarea[placeholder="Type a command or say Mjolnir"]');
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input, {message});
       input.dispatchEvent(new Event('input', {{ bubbles: true }}));
       input.form.requestSubmit();
       return 'submitted';

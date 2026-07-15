@@ -10,6 +10,7 @@ export default function AppShell({ activeView, connectionState, health, moduleCo
 
   return (
     <main className={`os-shell ${collapsed ? "os-shell--collapsed" : ""}`}>
+      <a className="skip-link" href="#main-workspace">Skip to workspace</a>
       <Sidebar activeView={activeView} collapsed={collapsed} onNavigate={onNavigate} onToggle={() => setCollapsed((value) => !value)} />
       <div className="os-shell__stage">
         <TopBar activeView={activeView} connectionState={connectionState} model={health.default_model} onNavigate={onNavigate} />
