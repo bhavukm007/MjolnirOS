@@ -4,6 +4,8 @@ import PluginManager from "./PluginManager.jsx";
 import ProductivityPlugins from "./ProductivityPlugins.jsx";
 import CommunicationPlugins from "./CommunicationPlugins.jsx";
 import SettingsPanel from "./SettingsPanel.jsx";
+import { AppShell } from "./components/shell/index.js";
+import { GlassCard } from "./components/ui/index.js";
 import { VoiceRuntime } from "./voice_runtime.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
@@ -50,7 +52,12 @@ export default function App() {
   const [learningKind, setLearningKind] = useState("application");
   const [learningValue, setLearningValue] = useState("");
   const [learningError, setLearningError] = useState("");
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(() => window.localStorage?.getItem("mjolnir.lastView") || "dashboard");
+
+  useEffect(() => {
+    window.localStorage?.setItem("mjolnir.lastView", activeView);
+    window.mjolniros?.saveNavigationState?.(activeView);
+  }, [activeView]);
 
   useEffect(() => {
     let active = true;
@@ -257,30 +264,12 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-[#090b10] text-slate-100">
-      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-normal">{health.app_name}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Local-first desktop operating assistant foundation.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-4 py-3">
-            <span className={`h-2.5 w-2.5 rounded-full ${connectionState === "online" ? "bg-emerald-400" : "bg-amber-400"}`} />
-            <span className="text-sm font-medium capitalize">{connectionState}</span>
-          </div>
-        </header>
-
-        <nav aria-label="Application navigation" className="flex gap-2">
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "dashboard" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("dashboard")} type="button">Dashboard</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "plugins" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("plugins")} type="button">Plugin Manager</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "productivity" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("productivity")} type="button">Productivity</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "communication" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("communication")} type="button">Communication</button>
-          <button className={`rounded px-3 py-2 text-sm ${activeView === "settings" ? "bg-cyan-400 font-semibold text-slate-950" : "bg-white/10"}`} onClick={() => setActiveView("settings")} type="button">Settings</button>
-        </nav>
-
-        {activeView === "dashboard" ? <>
+    <AppShell activeView={activeView} connectionState={connectionState} health={health} moduleCount={moduleCount} onNavigate={setActiveView}>
+        {activeView === "dashboard" ? <div className="os-page-enter space-y-6">
+        <section className="dashboard-welcome">
+          <div><p className="os-eyebrow">Private · Local · Ready</p><h2>{greeting()}, Boss.</h2><p>Mjolnir is standing by. What would you like to accomplish?</p></div>
+          <div className="dashboard-command-hint"><span>⌘</span><div><strong>Quick command</strong><small>Press Ctrl + K from anywhere</small></div></div>
+        </section>
         <section className="grid gap-4 md:grid-cols-4">
           <StatusTile label="Backend" value={health.status} />
           <StatusTile label="Environment" value={health.environment} />
@@ -290,7 +279,7 @@ export default function App() {
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <AssistantConsole />
-          <div className="rounded-md border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
+          <GlassCard className="p-5">
             <h2 className="text-lg font-semibold">Foundation Modules</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {health.modules.map((moduleName) => (
@@ -300,9 +289,9 @@ export default function App() {
                 </div>
               ))}
             </div>
-          </div>
+          </GlassCard>
 
-          <div className="rounded-md border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20">
+          <GlassCard className="p-5">
             <h2 className="text-lg font-semibold">Runtime</h2>
             <dl className="mt-5 space-y-4 text-sm">
               <RuntimeRow label="API Prefix" value={settings?.api_prefix ?? "/api/v1"} />
@@ -310,7 +299,7 @@ export default function App() {
               <RuntimeRow label="Config" value={settings ? "Loaded" : "Pending"} />
               <RuntimeRow label="Logging" value="Structured JSON" />
             </dl>
-          </div>
+          </GlassCard>
 
           <section className="grid gap-6 lg:grid-cols-2">
             <UploadPanel
@@ -357,10 +346,21 @@ export default function App() {
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
         </section>
-        </> : activeView === "plugins" ? <PluginManager request={fetchJson} /> : activeView === "productivity" ? <ProductivityPlugins request={fetchJson} /> : activeView === "communication" ? <CommunicationPlugins request={fetchJson} /> : <SettingsPanel request={fetchJson} />}
-      </section>
-    </main>
+        </div> : activeView === "plugins" ? <div className="os-page-enter"><PluginManager request={fetchJson} /></div> : activeView === "productivity" ? <div className="os-page-enter"><ProductivityPlugins request={fetchJson} /></div> : activeView === "communication" ? <div className="os-page-enter"><CommunicationPlugins request={fetchJson} /></div> : activeView === "settings" ? <div className="os-page-enter"><SettingsPanel request={fetchJson} /></div> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
+    </AppShell>
   );
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function PlaceholderPage({ view, onNavigate }) {
+  const labels = { chat: "Chat", memory: "Memory", browser: "Browser", vision: "Vision", automation: "Automation" };
+  return <GlassCard className="os-empty-page os-page-enter"><span className="os-eyebrow">Workspace</span><h2>{labels[view] ?? view}</h2><p>This workspace is ready for the next redesign phase. Existing tools remain available on the Dashboard.</p><button className="os-button os-button--primary os-button--md" onClick={() => onNavigate("dashboard")} type="button"><span className="os-button__content">Return to Dashboard</span></button></GlassCard>;
 }
 
 function LearningPanel({ learning, kind, value, error, onKindChange, onValueChange, onLoad, onRecord, onDecide }) {
