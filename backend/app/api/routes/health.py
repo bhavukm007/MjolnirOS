@@ -17,7 +17,7 @@ async def get_health() -> ApiResponse[HealthStatus]:
         status="ok",
         app_name=settings.app_name,
         environment=settings.environment,
-        version="1.0.0",
+        version="1.1.0",
         default_model=settings.default_model,
         modules=settings.enabled_foundation_modules,
     )
