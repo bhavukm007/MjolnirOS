@@ -60,6 +60,8 @@ export default function App() {
     window.mjolniros?.saveNavigationState?.(activeView);
   }, [activeView]);
 
+  useEffect(() => window.mjolniros?.onNavigate?.((view) => setActiveView(view)), []);
+
   useEffect(() => {
     let active = true;
 
@@ -280,7 +282,6 @@ export default function App() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <ChatPage apiBaseUrl={API_BASE_URL} compact />
           <GlassCard className="p-5">
             <h2 className="text-lg font-semibold">Foundation Modules</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -348,7 +349,10 @@ export default function App() {
           <LearningPanel learning={learning} kind={learningKind} value={learningValue} error={learningError} onKindChange={setLearningKind} onValueChange={setLearningValue} onLoad={loadLearning} onRecord={recordLearningObservation} onDecide={decideSuggestion} />
 
         </section>
-        </div> : activeView === "chat" ? <ChatPage apiBaseUrl={API_BASE_URL} /> : activeView === "plugins" ? <div className="os-page-enter"><PluginManager request={fetchJson} /></div> : activeView === "productivity" ? <div className="os-page-enter"><ProductivityPlugins request={fetchJson} /></div> : activeView === "communication" ? <div className="os-page-enter"><CommunicationPlugins request={fetchJson} /></div> : activeView === "settings" ? <div className="os-page-enter"><SettingsPanel request={fetchJson} /></div> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
+        </div> : activeView === "chat" ? null : activeView === "plugins" ? <div className="os-page-enter"><PluginManager request={fetchJson} /></div> : activeView === "productivity" ? <div className="os-page-enter"><ProductivityPlugins request={fetchJson} /></div> : activeView === "communication" ? <div className="os-page-enter"><CommunicationPlugins request={fetchJson} /></div> : activeView === "settings" ? <div className="os-page-enter"><SettingsPanel request={fetchJson} /></div> : <PlaceholderPage view={activeView} onNavigate={setActiveView} />}
+        <div className={activeView === "dashboard" || activeView === "chat" ? "voice-runtime-host" : "voice-runtime-host voice-runtime-host--hidden"}>
+          <ChatPage apiBaseUrl={API_BASE_URL} compact={activeView === "dashboard"} />
+        </div>
     </AppShell>
   );
 }

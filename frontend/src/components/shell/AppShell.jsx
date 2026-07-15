@@ -13,7 +13,7 @@ export default function AppShell({ activeView, connectionState, health, moduleCo
       <Sidebar activeView={activeView} collapsed={collapsed} onNavigate={onNavigate} onToggle={() => setCollapsed((value) => !value)} />
       <div className="os-shell__stage">
         <TopBar activeView={activeView} connectionState={connectionState} model={health.default_model} onNavigate={onNavigate} />
-        <div className="os-workspace" id="main-workspace" key={activeView}>{children}</div>
+        <div className="os-workspace" id="main-workspace">{children}</div>
         <StatusBar connectionState={connectionState} model={health.default_model} moduleCount={moduleCount} />
       </div>
     </main>
