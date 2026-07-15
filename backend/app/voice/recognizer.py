@@ -30,6 +30,7 @@ class VoskRecognitionSession:
         command_timeout_seconds: float = 10.0,
         wake_recognizer: object | None = None,
         speech_normalizer: SpeechNormalizer | None = None,
+        wake_cooldown_seconds: float = 1.0,
     ) -> None:
         self._recognizer = recognizer
         self._wake_word_detector = wake_word_detector
@@ -41,6 +42,8 @@ class VoskRecognitionSession:
         self._last_partial = ""
         self._command_timeout_seconds = command_timeout_seconds
         self._command_deadline: float | None = None
+        self._wake_cooldown_seconds = wake_cooldown_seconds
+        self._wake_cooldown_until = 0.0
 
     def accept_audio(self, audio: bytes) -> RecognitionResult:
         """Process PCM audio and return a completed wake-word or command event."""
@@ -60,6 +63,11 @@ class VoskRecognitionSession:
         )
         if self._state is VoiceState.PROCESSING_COMMAND:
             return RecognitionResult(state=self._state)
+        if (
+            self._state is VoiceState.LISTENING_FOR_WAKE_WORD
+            and monotonic() < self._wake_cooldown_until
+        ):
+            return RecognitionResult(state=self._state)
         if self._command_timed_out():
             log_voice_state("FOLLOW_UP_WINDOW_END", reason="timeout")
             voice_logger.info("voice_follow_up_timeout")
@@ -67,6 +75,7 @@ class VoskRecognitionSession:
             self._last_partial = ""
             self._command_deadline = None
             self._reset_recognizer()
+            self._wake_cooldown_until = monotonic() + self._wake_cooldown_seconds
             log_voice_state("RETURN_TO_WAKE")
             log_voice_state("WAITING_FOR_WAKE")
             return RecognitionResult(state=self._state)
@@ -75,15 +84,25 @@ class VoskRecognitionSession:
             and self._command_deadline is None
         ):
             self._command_deadline = monotonic() + self._command_timeout_seconds
-        wake_final = False
-        if (
-            self._state is VoiceState.LISTENING_FOR_WAKE_WORD
-            and self._wake_recognizer is not None
-        ):
-            wake_final = bool(self._wake_recognizer.AcceptWaveform(audio))
+        if self._state is VoiceState.LISTENING_FOR_WAKE_WORD:
+            # The unrestricted command recognizer must never receive idle
+            # audio. Production sessions use the constrained wake recognizer;
+            # the fallback keeps isolated tests and degraded runtimes usable.
+            wake_recognizer = self._wake_recognizer or self._recognizer
+            if not wake_recognizer.AcceptWaveform(audio):
+                return RecognitionResult(state=self._state)
+            wake_transcript = _without_unknown(
+                _extract_text(wake_recognizer.Result())
+            )
+            voice_logger.debug(
+                "voice_vosk_final",
+                extra={"text": wake_transcript, "state": self._state.value},
+            )
+            return self._process_transcript(wake_transcript)
+
         if not self._recognizer.AcceptWaveform(audio):
             partial = _extract_partial(self._recognizer.PartialResult())
-            if partial and self._state is VoiceState.LISTENING_FOR_COMMAND:
+            if partial:
                 self._command_deadline = monotonic() + self._command_timeout_seconds
             if partial and partial != self._last_partial:
                 self._last_partial = partial
@@ -91,47 +110,8 @@ class VoskRecognitionSession:
                     "voice_vosk_partial",
                     extra={"text": partial, "state": self._state.value},
                 )
-            # Never commit a wake transition from a partial hypothesis. Vosk
-            # may extend "Meonir" into "Meonir open Chrome" in the same
-            # utterance; resetting here clipped the inline command.
-            if wake_final:
-                wake_transcript = _without_unknown(
-                    _extract_text(self._wake_recognizer.Result())
-                )
-                if wake_transcript and self._wake_word_detector.detect(wake_transcript):
-                    self._pending_wake_transcript = wake_transcript
-                    voice_logger.info(
-                        "voice_constrained_wake_pending",
-                        extra={
-                            "wake_transcript": wake_transcript,
-                            "full_partial": partial,
-                        },
-                    )
             return RecognitionResult(state=self._state)
         transcript = _extract_text(self._recognizer.Result())
-        if self._state is VoiceState.LISTENING_FOR_WAKE_WORD:
-            wake_transcript = self._pending_wake_transcript
-            if wake_final:
-                wake_transcript = _without_unknown(
-                    _extract_text(self._wake_recognizer.Result())
-                ) or wake_transcript
-            if (
-                wake_transcript
-                and not self._wake_word_detector.detect(transcript)
-                and self._wake_word_detector.detect(wake_transcript)
-            ):
-                aligned = self._wake_word_detector.align_correlated_transcript(
-                    transcript
-                )
-                voice_logger.info(
-                    "voice_constrained_wake_final",
-                    extra={
-                        "wake_transcript": wake_transcript,
-                        "full_transcript": transcript,
-                        "selected_transcript": aligned or wake_transcript,
-                    },
-                )
-                transcript = aligned or wake_transcript
         voice_logger.debug(
             "voice_vosk_final",
             extra={"text": transcript, "state": self._state.value},
@@ -140,6 +120,8 @@ class VoskRecognitionSession:
 
     def finish(self) -> RecognitionResult:
         """Flush the recognizer when microphone capture ends."""
+        if self._state is VoiceState.LISTENING_FOR_WAKE_WORD:
+            return RecognitionResult(state=self._state)
         return self._process_transcript(_extract_text(self._recognizer.FinalResult()))
 
     def _process_transcript(self, transcript: str) -> RecognitionResult:
@@ -150,23 +132,14 @@ class VoskRecognitionSession:
             extra={"state": self._state.value, "transcript": transcript},
         )
         if self._state is VoiceState.LISTENING_FOR_WAKE_WORD:
-            detected, command = self._wake_word_detector.extract(transcript)
-            raw_command = command
-            command = self._speech_normalizer.normalize(command)
-            if command != raw_command:
-                voice_logger.info(
-                    "voice_command_stt_corrected",
-                    extra={"raw_command": raw_command, "corrected_command": command},
-                )
+            detected = self._wake_word_detector.detect(transcript)
             voice_logger.debug(
                 "voice_wake_word_checked",
                 extra={"transcript": transcript, "detected": detected},
             )
             if not detected:
-                return RecognitionResult(state=self._state, transcript=transcript)
-            self._state = (
-                VoiceState.PROCESSING_COMMAND if command else VoiceState.LISTENING_FOR_COMMAND
-            )
+                return RecognitionResult(state=self._state)
+            self._state = VoiceState.LISTENING_FOR_COMMAND
             self._last_partial = ""
             self._pending_wake_transcript = ""
             self._command_deadline = None
@@ -176,18 +149,14 @@ class VoskRecognitionSession:
                 "voice_wake_transition",
                 extra={
                     "from_state": "WAITING_FOR_WAKE",
-                    "to_state": (
-                        "PROCESSING" if command else "LISTENING_FOR_COMMAND"
-                    ),
+                    "to_state": "LISTENING_FOR_COMMAND",
                     "source": "final",
                 },
             )
-            log_voice_state("PROCESSING" if command else "LISTENING_FOR_COMMAND")
+            log_voice_state("LISTENING_FOR_COMMAND")
             return RecognitionResult(
                 state=self._state,
-                transcript=transcript,
                 wake_word_detected=True,
-                command=command or None,
             )
         raw_transcript = transcript
         transcript = self._speech_normalizer.normalize(transcript)
@@ -228,6 +197,7 @@ class VoskRecognitionSession:
         self._pending_wake_transcript = ""
         self._command_deadline = None
         self._reset_recognizer()
+        self._wake_cooldown_until = monotonic() + self._wake_cooldown_seconds
         log_voice_state("RETURN_TO_WAKE")
         log_voice_state("WAITING_FOR_WAKE")
         return RecognitionResult(state=self._state)

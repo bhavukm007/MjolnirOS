@@ -1,0 +1,17 @@
+{
+  "start_with_windows": true,
+  "launch_minimized": false,
+  "minimize_to_tray": true,
+  "theme": "system",
+  "accent_color": "#22d3ee",
+  "model": "qwen2.5:3b",
+  "ollama_url": "http://127.0.0.1:11434",
+  "memory_enabled": true,
+  "memory_storage": "local",
+  "notifications_enabled": true,
+  "quiet_hours_enabled": false,
+  "quiet_hours_start": "22:00",
+  "quiet_hours_end": "07:00",
+  "preferred_browser": "system",
+  "preferred_email_service": "gmail"
+}

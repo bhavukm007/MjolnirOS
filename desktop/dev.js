@@ -55,6 +55,9 @@ async function start() {
     windowsHide: true,
     }
   );
+  frontendProcess.on("exit", (code) => {
+    if (!stopping) stop(code ?? 1);
+  });
   await waitForFrontend();
   electronProcess = spawn(electron, [projectRoot, ...process.argv.slice(2)], {
     cwd: projectRoot,

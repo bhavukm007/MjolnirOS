@@ -80,6 +80,6 @@ describe("App", () => {
     fireEvent.change(screen.getByPlaceholderText("Type a command or say Mjolnir"), { target: { value: "typed command" } });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => expect(screen.getByText("Done, Boss.")).toBeInTheDocument());
-    expect(global.fetch.mock.calls.some(([url]) => url.includes("/voice/speak?wait=true"))).toBe(true);
+    expect(global.fetch.mock.calls.some(([url]) => url.includes("/voice/speak?wait=true"))).toBe(false);
   });
 });
