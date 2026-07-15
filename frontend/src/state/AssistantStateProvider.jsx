@@ -16,6 +16,7 @@ export function AssistantStateProvider({ children }) {
   }, []);
   const acceptVoiceState = useCallback((voiceState) => { const next = voiceStateMap[voiceState]; if (next) setState(next); }, []);
   useEffect(() => { const onVisibility = () => setSuspended(document.hidden); document.addEventListener("visibilitychange", onVisibility); return () => document.removeEventListener("visibilitychange", onVisibility); }, []);
+  useEffect(() => { window.mjolniros?.reportAssistantState?.(state); }, [state]);
   const value = useMemo(() => ({ state, setState, audioLevel, setAudioLevel, acceptVoiceState, suspended }), [state, audioLevel, setAudioLevel, acceptVoiceState, suspended]);
   return <AssistantStateContext.Provider value={value}>{children}</AssistantStateContext.Provider>;
 }

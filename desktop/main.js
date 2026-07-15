@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, powerMonitor, screen } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -16,6 +16,9 @@ let backendProcess;
 let ownsBackend = false;
 let quitPrepared = false;
 let quitPreparation;
+let listeningEnabled = true;
+let listeningBeforeSuspend = false;
+let assistantState = "idle";
 const ownsApplicationInstance = app.requestSingleInstanceLock();
 
 app.disableHardwareAcceleration();
@@ -28,18 +31,39 @@ app.commandLine.appendSwitch("in-process-gpu");
 // task or another user context, which prevents its renderer from starting.
 const runtimeDataPath = path.join(__dirname, "..", "database", "electron-runtime");
 fs.mkdirSync(runtimeDataPath, { recursive: true });
+const WINDOW_STATE_PATH = path.join(runtimeDataPath, "desktop-state.json");
 app.setPath("userData", runtimeDataPath);
 app.setPath("sessionData", path.join(runtimeDataPath, "session"));
 app.setAppUserModelId("com.mjolniros.desktop");
+
+function loadDesktopState() {
+  try { return JSON.parse(fs.readFileSync(WINDOW_STATE_PATH, "utf8")); }
+  catch { return { bounds: { width: 1240, height: 820 }, maximized: false, lastView: "dashboard", startupInitialized: false }; }
+}
+
+let desktopState = loadDesktopState();
+
+function saveDesktopState(patch = {}) {
+  desktopState = { ...desktopState, ...patch };
+  try { fs.writeFileSync(WINDOW_STATE_PATH, JSON.stringify(desktopState, null, 2), "utf8"); }
+  catch (error) { console.error(`[desktop] Failed to persist state: ${error.message}`); }
+}
+
+function restoredBounds() {
+  const bounds = desktopState.bounds;
+  if (!bounds || !Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) return { width: 1240, height: 820 };
+  const visible = screen.getAllDisplays().some(({ workArea }) => bounds.x < workArea.x + workArea.width && bounds.x + bounds.width > workArea.x && bounds.y < workArea.y + workArea.height && bounds.y + bounds.height > workArea.y);
+  return visible ? bounds : { width: Math.min(bounds.width, 1240), height: Math.min(bounds.height, 820) };
+}
 
 function isSmokeMode() {
   return process.argv.includes("--smoke");
 }
 
 function createWindow() {
+  const bounds = restoredBounds();
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    ...bounds,
     minWidth: 960,
     minHeight: 640,
     backgroundColor: "#090b10",
@@ -60,26 +84,91 @@ function createWindow() {
   } else {
     mainWindow.loadURL(FRONTEND_URL);
   }
+  mainWindow.webContents.once("did-finish-load", () => { if (desktopState.lastView) mainWindow.webContents.send("navigate", desktopState.lastView); });
+
+  if (desktopState.maximized) mainWindow.maximize();
+  const persistBounds = () => { if (!mainWindow.isMaximized() && !mainWindow.isMinimized()) saveDesktopState({ bounds: mainWindow.getBounds() }); };
+  mainWindow.on("resize", persistBounds);
+  mainWindow.on("move", persistBounds);
+  mainWindow.on("maximize", () => saveDesktopState({ maximized: true }));
+  mainWindow.on("unmaximize", () => { saveDesktopState({ maximized: false }); persistBounds(); });
 
   mainWindow.on("close", (event) => {
     if (minimizeToTray && !app.isQuitting) {
       event.preventDefault();
-      mainWindow.hide();
+      void hideMainWindow();
     }
   });
+  mainWindow.on("session-end", () => { app.isQuitting = true; void prepareApplicationQuit(); });
+}
+
+async function runRendererVoice(action) {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return { available: false, listening: false };
+  try {
+    return await mainWindow.webContents.executeJavaScript(`(async () => { const runtime = window.__mjolnirVoiceRuntime; if (!runtime) return { available: false, listening: false }; const wasListening = Boolean(runtime.listeningEnabled); await runtime.${action}(); return { available: true, wasListening, listening: Boolean(runtime.listeningEnabled) }; })()`, true);
+  } catch (error) {
+    console.error(`[voice] Renderer ${action} failed: ${error.message}`);
+    return { available: false, listening: false };
+  }
+}
+
+async function hideMainWindow() {
+  const result = await runRendererVoice("pause");
+  if (result.available) listeningEnabled = result.wasListening;
+  updateTray("paused");
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
+}
+
+async function showMainWindow(view) {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  if (view) mainWindow.webContents.send("navigate", view);
+  if (listeningEnabled) await runRendererVoice("resume");
+  updateTray(listeningEnabled ? "listening" : "paused");
+}
+
+async function pauseListening() {
+  listeningEnabled = false;
+  await runRendererVoice("pause");
+  updateTray("paused");
+}
+
+async function resumeListening() {
+  listeningEnabled = true;
+  if (mainWindow?.isVisible()) {
+    await runRendererVoice("resume");
+    updateTray("listening");
+  } else updateTray("paused");
+}
+
+function trayMenu() {
+  return Menu.buildFromTemplate([
+    { label: "Open Mjolnir", click: () => { void showMainWindow(); } },
+    { type: "separator" },
+    { label: "Pause Listening", enabled: listeningEnabled, click: () => { void pauseListening(); } },
+    { label: "Resume Listening", enabled: !listeningEnabled, click: () => { void resumeListening(); } },
+    { type: "separator" },
+    { label: "Settings", click: () => { void showMainWindow("settings"); } },
+    { label: "Restart Backend", click: () => { void restartBackend(); } },
+    { type: "separator" },
+    { label: "Quit Mjolnir", click: () => { app.isQuitting = true; void prepareApplicationQuit(); } }
+  ]);
+}
+
+function updateTray(state = assistantState) {
+  assistantState = state;
+  if (!tray || tray.isDestroyed()) return;
+  tray.setToolTip(`MjolnirOS · ${state.replaceAll("-", " ")}`);
+  tray.setContextMenu(trayMenu());
 }
 
 function createTray() {
   const icon = nativeImage.createFromPath(TRAY_ICON_PATH);
   tray = new Tray(icon);
-  tray.setToolTip("MjolnirOS");
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "Open", click: () => { mainWindow.show(); mainWindow.focus(); } },
-    { label: "Restart", click: () => { app.relaunch(); app.isQuitting = true; app.quit(); } },
-    { label: "Settings", click: () => { mainWindow.show(); mainWindow.focus(); } },
-    { label: "Quit", click: () => { app.isQuitting = true; app.quit(); } }
-  ]));
-  tray.on("double-click", () => { mainWindow.show(); mainWindow.focus(); });
+  updateTray("listening");
+  tray.on("double-click", () => { void showMainWindow(); });
 }
 
 function backendIsReady() {
@@ -167,8 +256,24 @@ async function startBackend() {
   throw new Error("MjolnirOS backend did not become ready on port 8000.");
 }
 
-function stopBackend() {
-  if (ownsBackend && backendProcess && !backendProcess.killed) backendProcess.kill();
+async function stopBackend() {
+  if (!ownsBackend || !backendProcess || backendProcess.killed) return;
+  const processToStop = backendProcess;
+  await new Promise((resolve) => { processToStop.once("exit", resolve); processToStop.kill(); });
+  if (backendProcess === processToStop) backendProcess = undefined;
+  ownsBackend = false;
+}
+
+async function restartBackend() {
+  if (!ownsBackend || !backendProcess) {
+    console.log("[launcher] Restart skipped because Electron does not own the active backend.");
+    updateTray("online");
+    return;
+  }
+  updateTray("offline");
+  await stopBackend();
+  try { await startBackend(); updateTray("online"); }
+  catch (error) { console.error(`[launcher] Backend restart failed: ${error.message}`); updateTray("error"); }
 }
 
 async function stopVoiceRuntime() {
@@ -195,7 +300,7 @@ function prepareApplicationQuit() {
   if (quitPreparation) return quitPreparation;
   quitPreparation = (async () => {
     await stopVoiceRuntime();
-    stopBackend();
+    await stopBackend();
     quitPrepared = true;
     app.quit();
   })();
@@ -216,11 +321,18 @@ async function configureLoginItem() {
     const response = await fetch("http://127.0.0.1:8000/api/v1/settings/user");
     const body = await response.json();
     if (body.success) {
-      applyDesktopSettings(body.data);
-      if (body.data.launch_minimized) mainWindow.hide();
+      let settings = body.data;
+      if (!desktopState.startupInitialized) {
+        const update = await fetch("http://127.0.0.1:8000/api/v1/settings/user", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ start_with_windows: true }) });
+        const updatedBody = await update.json();
+        if (updatedBody.success) settings = updatedBody.data;
+        saveDesktopState({ startupInitialized: true });
+      }
+      applyDesktopSettings(settings);
+      if (settings.launch_minimized) void hideMainWindow();
     }
   } catch {
-    // The backend can start after Electron; retain the previous Windows setting.
+    app.setLoginItemSettings({ openAtLogin: true, openAsHidden: false });
   }
 }
 
@@ -238,12 +350,24 @@ async function startApplication() {
   createWindow();
   createTray();
   ipcMain.on("settings-updated", (_event, settings) => applyDesktopSettings(settings));
+  ipcMain.on("navigation-state", (_event, view) => { if (typeof view === "string") saveDesktopState({ lastView: view }); });
+  ipcMain.on("assistant-state", (_event, state) => { if (typeof state === "string" && listeningEnabled && mainWindow?.isVisible()) updateTray(state); });
+  powerMonitor.on("suspend", () => {
+    listeningBeforeSuspend = listeningEnabled;
+    if (listeningBeforeSuspend) void runRendererVoice("pause");
+    updateTray("paused");
+  });
+  powerMonitor.on("resume", () => {
+    if (listeningBeforeSuspend && mainWindow?.isVisible()) void runRendererVoice("resume").then(() => updateTray("listening"));
+    listeningBeforeSuspend = false;
+  });
+  powerMonitor.on("shutdown", (event) => { event.preventDefault(); app.isQuitting = true; void prepareApplicationQuit(); });
   configureLoginItem();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
-    }
+    } else void showMainWindow();
   });
 }
 
@@ -252,9 +376,7 @@ if (!ownsApplicationInstance) {
 } else {
   app.on("second-instance", () => {
     if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
+    void showMainWindow();
   });
   app.whenReady().then(startApplication);
 }
@@ -270,5 +392,4 @@ app.on("before-quit", (event) => {
     void prepareApplicationQuit();
     return;
   }
-  stopBackend();
 });
