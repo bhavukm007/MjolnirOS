@@ -1,105 +1,277 @@
+<div align="center">
+  <img src="assets/branding/mjolnir-app-source.png" alt="MjolnirOS logo" width="160">
+
 # MjolnirOS
 
-MjolnirOS is a local-first Windows desktop operating assistant built with FastAPI, Electron, React, and Tailwind CSS. Version 1.0 includes private vision/document processing, automation, learning, plugins, productivity integrations, communication drafts, and persisted desktop settings.
+Local-first AI desktop assistant for Windows, built with Electron, FastAPI, React, and Ollama.
 
-## Current capabilities
+MjolnirOS brings voice interaction, desktop and browser automation, local memory, document tools, and extensible plugins into one privacy-conscious desktop application.
 
-- FastAPI backend with `/api/v1/health` and `/api/v1/settings`.
-- React dashboard that reads backend health and configuration state.
-- Electron desktop shell with smoke validation.
-- Centralized JSON and environment-based configuration.
-- Structured JSON logging to console and `logs/mjolniros.log`.
-- Docker Compose support for backend and frontend.
-- Drag-and-drop local processing for PDF, DOCX, XLSX, PPTX, TXT, and Markdown documents.
-- Extractive document summaries, table extraction, and offline document questions.
-- Screenshot OCR, probable button recognition, and visible error detection using Tesseract.
-- Optional document translation through a locally running Ollama model; no document data is sent to a cloud service.
-- Automation Engine & Planner with built-in routines, saved custom workflows, visible dependency-aware progress, cancellation, and local goal decomposition.
-- Learning Mode with local habit observations, inferred preferences, and user-approved automation recommendations.
-- Plugin Manager with a local marketplace, manifest validation, dependency checks, permission declarations, and restart-free isolated loading.
-- Productivity plugins for Gmail, Google Calendar, Notion, and Google Drive with OAuth connections, provider health, and manual sync controls.
-- Communication plugins for Discord, Slack, WhatsApp Cloud API, Telegram, and Microsoft Teams. They save drafts locally and require a fresh confirmation for every message send.
-- Persisted desktop settings for startup, tray behavior, appearance, Ollama, memory, notifications, and local security controls.
+[![Version](https://img.shields.io/badge/version-1.1.0-2563eb)](https://github.com/bhavukm007/MjolnirOS/releases/tag/v1.1.0)
+[![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078d4)](https://github.com/bhavukm007/MjolnirOS)
+[![Python](https://img.shields.io/badge/python-3.12%2B-3776ab)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/node.js-20%2B-339933)](https://nodejs.org/)
+</div>
 
-## Learning Mode
+## Overview
 
-Learning Mode stores local, non-sensitive activity observations in `database/learning/`. It can infer preferred applications, IDEs, browsers, folders, repositories, coding styles, and frequently used commands. After a pattern repeats, MjolnirOS proposes a safe workflow; it never creates or runs automation until the user explicitly approves the suggestion.
+MjolnirOS is designed around local execution and explicit user control. AI requests can use a locally running Ollama model, speech recognition can run with Vosk, and application data is stored on the local machine. Capabilities are separated into focused modules for AI routing, voice, memory, Windows control, browser automation, documents, workflows, and plugins.
 
-## Automation & Planner
+Cloud-backed integrations are optional. Actions such as sending communication drafts or deleting provider data require explicit confirmation.
 
-The Automation Engine stores workflows locally in `database/automation/`. Built-in workflows are safe orchestration templates for morning, coding, study, placement preparation, interview, presentation, gaming, and shutdown routines. Custom workflows support `notify` and `wait` steps today; later agent integrations can add action adapters without changing stored workflow definitions. The planner maps common goals to an appropriate routine or returns a transparent generic plan.
+## Screenshots
 
-## Vision & Document setup
+_Add application screenshots here._
 
-OCR requires [Tesseract OCR](https://github.com/tesseract-ocr/tesseract). On Windows, install it with `winget install --id UB-Mannheim.TesseractOCR -e`, then restart the terminal so the installer can add it to `PATH`. MjolnirOS checks an explicitly configured `MJOLNIROS_TESSERACT_COMMAND` first, then `PATH`, then standard Windows installation roots. If the executable is installed elsewhere, set `MJOLNIROS_TESSERACT_COMMAND` to its full path. Uploads are stored locally in `database/documents/`, are limited to 20 MB by default, and can be configured through `config/app.json` or environment variables.
+## Why MjolnirOS?
 
-Cloud synchronization, mobile access, voice calling, and enterprise deployment are intentionally outside the v1.0 scope.
+- **Local-first operation:** Core assistant, memory, speech, document, and automation workflows are designed to run on the user's machine.
+- **Privacy-conscious storage:** Settings, memory, workflow state, and uploaded documents remain in local runtime storage by default.
+- **Modular capabilities:** A deterministic capability router directs requests to specialized modules before using the general AI fallback.
+- **Extensible integrations:** A manifest-based plugin system supports isolated plugins with declared permissions and dependency checks.
+- **Desktop automation:** Windows and browser controllers expose focused actions through a single desktop interface.
+- **User-controlled side effects:** Communication sends and selected destructive provider operations require fresh confirmation.
 
-## Plugin System
+## Features
 
-Phase 13 provides a local-first plugin SDK. On first use, the Plugin Manager materializes the Spotify, Weather, Calculator, Clock, GitHub, and Docker plugins in `plugins/`. Each plugin has `manifest.json`, `permissions.json`, `plugin.py`, and `README.md`. The dashboard marketplace supports category browsing, search, loading, installation, updates, and uninstallation without a backend restart.
+### AI runtime
 
-Use the **Plugin Manager** navigation item to browse installed extensions or the local marketplace. Enabled state is persisted locally in `database/plugins/state.json`, so an enabled plugin remains enabled after restart; disabling keeps its files available for later activation.
+- Local Ollama integration with configurable model and server URL.
+- Deterministic routing for browser, Windows, memory, planning, coding, and general-assistant requests.
+- Text normalization for common command typos while preserving explicit routing behavior.
 
-Plugins declare reviewed capabilities including `automation`, `browser`, `memory`, `network`, `system`, and provider-specific integration permissions. The manager validates manifests, permission combinations, semantic-version dependencies, and dependency cycles before activation, then invokes the entry point in a separate isolated Python interpreter process. This prevents plugin code from being imported into the API process; OS-level access should still be granted only through the existing approval-gated agents.
+### Voice assistant
 
-## Communication and security
+- Offline speech recognition with Vosk.
+- Local text-to-speech through system voices.
+- Wake-word sessions, microphone lifecycle management, and speech normalization.
 
-Communication credentials are protected with the current Windows user's DPAPI key in `database/communication/`; they are never returned by the API or loaded by isolated plugin processes. Drafts remain unsent until the send request includes `{"confirmed": true}`. Voice calling is intentionally reserved for a future plugin interface.
+### Windows automation
 
-## Requirements
+- Installed-application discovery and launching.
+- Focused Windows actions exposed through the assistant API.
+- Separation between native application requests and website requests.
 
-## Productivity plugin setup
+### Browser automation
 
-Gmail, Google Calendar, Google Drive, and Notion are independent Phase 14 plugins. Add OAuth client credentials to a local `.env` file using the names in `.env.example`; do not commit those values. Register the loopback redirect URIs with Google and Notion, start MjolnirOS, then open **Productivity** and select **Connect**. OAuth tokens are protected with the current Windows user's DPAPI key in `database/productivity/` and are never returned through the API or shown in the UI.
+- Playwright-based browser control and page interaction.
+- Natural-language browser intent decomposition.
+- Browser profile-aware launching, page summaries, and screenshots.
 
-Google uses Gmail modify, Calendar, and Drive scopes only. Sending a Gmail draft and deleting a Drive file each require `{"confirmed": true}` on that operation; drafts are never sent automatically. Calendar creation checks the requested time window for conflicts before creating an event.
+### Vision and documents
 
-- Python 3.12+
-- Node.js 20+
-- npm 10+
+- Tesseract-based screenshot OCR, probable button detection, and visible-error detection.
+- Local extraction from PDF, DOCX, XLSX, PPTX, TXT, and Markdown files.
+- Extractive summaries, table preservation, document questions, and optional local translation through Ollama.
 
-## Setup
+### Automation and learning
+
+- Persisted workflows with dependency-aware execution, progress, and cancellation.
+- Goal decomposition through the local planner.
+- Local preference learning and user-approved workflow suggestions.
+
+### Productivity and communication
+
+- Productivity integrations for Gmail, Google Calendar, Google Drive, and Notion.
+- Communication integrations for Discord, Slack, Telegram, WhatsApp, and Microsoft Teams.
+- Local draft storage and explicit confirmation before sends or selected destructive actions.
+
+### Plugin system
+
+- Local plugin catalog with install, update, enable, disable, and uninstall operations.
+- Manifest validation, declared permissions, dependency checks, and process-isolated loading.
+- Bundled utility and integration plugins.
+
+### Memory
+
+- Persistent local memory for facts, preferences, tasks, and conversational context.
+- Explicit remember, query, and forget operations.
+- Configurable memory behavior and local vector storage.
+
+### Security
+
+- Windows DPAPI protection for supported OAuth tokens and communication credentials.
+- Approval gates for sensitive actions.
+- Local audit records that exclude credential and token values.
+- Environment-based secrets kept outside source control.
+
+## Technology stack
+
+| Area | Technology | Role |
+| --- | --- | --- |
+| Desktop | Electron | Native Windows shell, tray integration, and application lifecycle |
+| Frontend | React, Vite, Tailwind CSS | Desktop interface and development tooling |
+| Backend | FastAPI, Uvicorn | Local API and capability orchestration |
+| Language | Python 3.12+, JavaScript | Backend services and desktop/frontend runtime |
+| Local AI | Ollama | Local language-model inference |
+| Speech | Vosk, pyttsx3 | Offline speech recognition and local text-to-speech |
+| Vision | Tesseract, Pillow | OCR and image processing |
+| Browser | Playwright | Browser automation |
+| Storage | SQLite, Chroma | Runtime state and vector-backed memory |
+| Documents | pypdf, python-docx, openpyxl, python-pptx | Local document extraction |
+| Packaging | Electron build metadata | Windows icon and NSIS target configuration |
+| Containers | Docker, Docker Compose | Optional containerized backend and frontend |
+
+## Project architecture
+
+The Electron shell hosts the React interface and coordinates the local desktop lifecycle. The frontend communicates with a FastAPI service under `/api/v1`. A capability router directs requests to focused services for AI, voice, memory, Windows, browser, automation, vision, plugins, productivity, and communication. Runtime data is stored locally under `database/`.
+
+See the [architecture reference](docs/reference/ARCHITECTURE.md) for component responsibilities and execution flow.
+
+## Project structure
+
+```text
+MjolnirOS/
+├── assets/             # Application icons and production branding
+├── backend/            # FastAPI application and capability services
+├── config/             # Checked-in default configuration
+├── database/           # Local runtime storage root
+├── desktop/            # Electron main process and preload bridge
+├── docs/               # Guides, references, releases, and history
+├── frontend/           # React and Tailwind CSS interface
+├── plugins/            # Bundled plugins and local catalog
+├── scripts/            # Development and branding utilities
+└── tests/              # Backend and integration tests
+```
+
+## Getting started
+
+### Prerequisites
+
+| Requirement | Version or purpose |
+| --- | --- |
+| Windows | Required for desktop, DPAPI, tray, and Windows automation features |
+| Python | 3.12 or newer |
+| Node.js | 20 or newer |
+| npm | 10 or newer |
+| Ollama | Local language-model runtime |
+| Tesseract OCR | Required for screenshot OCR and vision analysis |
+| Vosk model | Optional unless offline voice recognition is used |
+
+### Install external tools
+
+Install [Ollama](https://ollama.com/) and pull the default model:
 
 ```powershell
+ollama pull qwen2.5:3b
+```
+
+Install Tesseract OCR on Windows:
+
+```powershell
+winget install --id UB-Mannheim.TesseractOCR -e
+```
+
+For offline speech recognition, download a compatible Vosk model and place it at:
+
+```text
+assets/models/vosk-model-small-en-us-0.15/
+```
+
+The model directory is intentionally excluded from Git.
+
+## Installation
+
+```powershell
+git clone https://github.com/bhavukm007/MjolnirOS.git
+cd MjolnirOS
+
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+
 npm install
+npm install --prefix frontend
+
+Copy-Item .env.example .env
 ```
 
-## Run Locally
+Review `.env` before starting the application, especially the Ollama model, Tesseract path, OAuth credentials, and local storage settings.
 
-Start the backend:
+## Running the project
+
+### Integrated development mode
+
+Start the backend, frontend, and Electron shell together:
 
 ```powershell
+npm run dev
+```
+
+### Run components separately
+
+Use separate terminals when starting each component individually:
+
+```powershell
+# Backend: http://127.0.0.1:8000/api/v1
 npm run backend:dev
-```
 
-Start the frontend:
-
-```powershell
+# Frontend: http://127.0.0.1:5173
 npm run frontend:dev
-```
 
-Launch Electron:
-
-```powershell
+# Electron shell
 npm run desktop:dev
 ```
 
-The API is served at `http://127.0.0.1:8000/api/v1`.
+### Docker
 
-## Verification
-
-```powershell
-npm test
-npm run build
-npm run launch:smoke
-```
-
-## Docker
+The backend and frontend can also be started with Docker Compose:
 
 ```powershell
 docker compose up --build
 ```
+
+Docker does not replace Windows-specific desktop functionality provided by Electron.
+
+## Configuration
+
+MjolnirOS loads checked-in defaults from `config/app.json`. Environment variables prefixed with `MJOLNIROS_` can override local settings; copy `.env.example` to `.env` for development values and secrets.
+
+Common settings include:
+
+| Setting | Purpose |
+| --- | --- |
+| `MJOLNIROS_DEFAULT_MODEL` | Ollama model used by the assistant |
+| `MJOLNIROS_OLLAMA_URL` | Local Ollama server URL |
+| `MJOLNIROS_TESSERACT_COMMAND` | Full path to `tesseract.exe` when it is not on `PATH` |
+| `MJOLNIROS_VISION_UPLOAD_DIRECTORY` | Local document upload directory |
+| `MJOLNIROS_AUTOMATION_STORAGE_DIRECTORY` | Persisted workflow directory |
+| `MJOLNIROS_LEARNING_STORAGE_DIRECTORY` | Local learning-state directory |
+
+Voice recognition uses the configured Vosk model path, which defaults to `assets/models/vosk-model-small-en-us-0.15`. Productivity integrations require provider credentials from `.env`; they are optional until an integration is connected.
+
+## Documentation
+
+| Document | Description |
+| --- | --- |
+| [Installation guide](docs/guides/INSTALLATION_GUIDE.md) | Detailed setup and installation guidance |
+| [User guide](docs/guides/USER_GUIDE.md) | Using the desktop assistant and its capabilities |
+| [Architecture](docs/reference/ARCHITECTURE.md) | Components, boundaries, and execution model |
+| [API reference](docs/reference/API_REFERENCE.md) | Local API endpoints and conventions |
+| [Plugin SDK](docs/reference/PLUGIN_SDK.md) | Plugin structure, permissions, and lifecycle |
+| [Security](docs/reference/SECURITY.md) | Security principles and sensitive operations |
+| [Testing](docs/guides/TESTING.md) | Test strategy and verification commands |
+| [Roadmap](docs/releases/ROADMAP.md) | Current maintenance line and future planning |
+| [Release notes](docs/releases/RELEASE_NOTES.md) | In-repository release summary |
+| [Contributing](docs/guides/CONTRIBUTING.md) | Contribution workflow and project conventions |
+
+## Current status
+
+MjolnirOS v1.1.0 provides the local desktop shell, deterministic capability routing, Ollama integration, voice and text normalization, Windows and browser routing, local memory, document processing, automation, plugins, productivity integrations, communication drafts, and persisted settings.
+
+Development is ongoing. Live weather, news, sports, and currency providers are not yet implemented, and the repository does not currently publish a packaged Windows installer. The application should be run from source.
+
+## Roadmap
+
+Current areas of work include live-information providers, production installer packaging, user-selectable browser profiles, broader automation adapters, and continued reliability and performance improvements.
+
+See the [detailed roadmap](docs/releases/ROADMAP.md) for maintained planning information.
+
+## Contributing
+
+Contributions should follow the repository's coding, testing, security, and review conventions. Start with the [contribution guide](docs/guides/CONTRIBUTING.md).
+
+## License
+
+MjolnirOS is available under the [MIT License](LICENSE).

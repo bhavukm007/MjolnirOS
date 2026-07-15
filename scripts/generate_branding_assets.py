@@ -29,7 +29,6 @@ def main() -> None:
     icon_artwork = Image.open(BRANDING / "mjolnir-icon-original.jpg").convert("RGBA")
     app_source = square_artwork(icon_artwork)
     app_source.save(BRANDING / "mjolnir-app-source.png", optimize=True)
-    app_source.save(BRANDING / "mjolnir-icon-source.png", optimize=True)
     write_sizes(app_source, "mjolnir-app", APP_SIZES)
     app_source.save(
         BRANDING / "mjolnir.ico",
@@ -39,7 +38,6 @@ def main() -> None:
     )
 
     tray = ImageOps.contain(app_source, (256, 256), Image.Resampling.LANCZOS)
-    tray.save(BRANDING / "mjolnir-tray-source.png", optimize=True)
     write_sizes(tray, "mjolnir-tray", TRAY_SIZES)
 
 

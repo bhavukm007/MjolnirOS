@@ -1,4 +1,4 @@
-"""Capture Electron renderer and Windows shell branding evidence."""
+"""Capture temporary Electron renderer and Windows shell branding evidence."""
 
 import base64
 import ctypes
@@ -11,7 +11,7 @@ from PIL import ImageGrab
 import websocket
 
 
-OUTPUT = Path(__file__).resolve().parents[1] / "artifacts" / "branding-verification"
+OUTPUT = Path(__file__).resolve().parents[1] / ".tmp" / "branding-verification"
 
 
 def capture_renderer() -> None:

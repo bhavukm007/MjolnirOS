@@ -1,7 +1,33 @@
 {
   "name": "@mjolniros/frontend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
+  "keywords": [
+    "ai-assistant",
+    "local-first",
+    "windows",
+    "electron",
+    "fastapi",
+    "react",
+    "ollama",
+    "voice-assistant",
+    "automation"
+  ],
+  "homepage": "https://github.com/bhavukm007/MjolnirOS#readme",
+  "bugs": {
+    "url": "https://github.com/bhavukm007/MjolnirOS/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhavukm007/MjolnirOS.git",
+    "directory": "frontend"
+  },
+  "author": "Bhavuk Mahajan",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -9,7 +35,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "mjolniros": "file:..",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
