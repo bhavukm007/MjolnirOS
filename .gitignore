@@ -45,6 +45,7 @@ Thumbs.db
 # Testing
 .pytest_cache/
 .pytest_tmp*/
+pytest-*/
 .coverage
 htmlcov/
 coverage.xml
@@ -78,9 +79,25 @@ plugins/*/
 # Temporary
 *.tmp
 *.temp
+*.pid
 .tmp/
 tmp/
 temp/
+
+# Private browser / desktop debugging artifacts
+profile*.png
+profile2*.png
+browser-profile*
+chrome-profile*
+*verification*.png
+taskbar-after-quit.png
+tray-quit-menu.png
+inline-*.wav
+wake-*.wav
+open-chrome.wav
+voice-runtime-electron*
+artifacts/branding-verification/
+artifacts/mic-leak-*.png
 
 # AI Models
 assets/models/
