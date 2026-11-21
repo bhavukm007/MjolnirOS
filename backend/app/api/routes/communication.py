@@ -1,6 +1,6 @@
 """REST API for confirmation-gated communication integrations."""
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 
 from backend.app.communication.communication_service import CommunicationService
 from backend.app.core.responses import ApiResponse
@@ -93,10 +93,10 @@ def create_draft(
 def send_draft(
     draft_id: str, payload: SendMessageConfirmation
 ) -> ApiResponse[MessageDraft]:
-    return ApiResponse(
-        success=True,
-        message="Message sent after explicit confirmation.",
-        data=_service().send_draft(draft_id, payload.confirmed),
+    del draft_id, payload
+    raise HTTPException(
+        status_code=501,
+        detail="Sending messages is unavailable until approval is bound to the exact message and recipient.",
     )
 
 

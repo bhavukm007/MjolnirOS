@@ -5,9 +5,10 @@ from __future__ import annotations
 from functools import lru_cache
 import json
 import os
+import time
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, DotEnvSettingsSource, SettingsConfigDict
 
 
@@ -57,6 +58,11 @@ class AppSettings(BaseSettings):
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_base_url: str = "http://127.0.0.1:11434/api"
     ollama_timeout_seconds: float = 120.0
+    api_token: SecretStr | None = None
+    api_token_expires_at: float = Field(
+        default_factory=lambda: time.time() + 30 * 24 * 60 * 60
+    )
+    coding_api_token: SecretStr | None = None
     voice_enabled: bool = True
     voice_model_path: Path = Path("assets/models/vosk-model-small-en-us-0.15")
     voice_sample_rate: int = 16_000

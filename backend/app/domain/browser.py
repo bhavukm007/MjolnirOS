@@ -6,6 +6,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
+CAPABILITY_BACKED_BROWSER_ACTIONS = frozenset(
+    {"open", "new_tab", "search", "read", "summarize", "tabs"}
+)
+
 
 BrowserName = Literal["system", "chrome", "edge", "firefox"]
 BrowserActionName = Literal[

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Response, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
 from backend.app.core.responses import ApiResponse
 from backend.app.core.settings import get_settings
@@ -130,10 +130,10 @@ def reply_draft(
 def send_draft(
     draft_id: str, confirmation: SendConfirmation
 ) -> ApiResponse[dict[str, object]]:
-    return ApiResponse(
-        success=True,
-        message="Email sent after explicit confirmation.",
-        data=_service().send_draft(draft_id, confirmation.confirmed),
+    del draft_id, confirmation
+    raise HTTPException(
+        status_code=501,
+        detail="Sending email is unavailable until approval is bound to the exact message and recipient.",
     )
 
 
@@ -305,5 +305,8 @@ def drive_move(
 
 @router.delete("/drive/files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
 def drive_delete(file_id: str, confirmation: SendConfirmation) -> Response:
-    _service().drive_delete(file_id, confirmation.confirmed)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    del file_id, confirmation
+    raise HTTPException(
+        status_code=501,
+        detail="Drive deletion is unavailable until approval is bound to the exact file.",
+    )

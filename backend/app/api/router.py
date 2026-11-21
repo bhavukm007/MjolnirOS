@@ -19,6 +19,7 @@ from backend.app.api.routes.github import router as github_router
 from backend.app.api.routes.coding import router as coding_router
 from backend.app.api.routes.coding_ai import router as coding_ai_router
 from backend.app.api.routes.build import router as build_router
+from backend.app.api.routes.agents import router as agents_router
 
 api_router = APIRouter()
 api_router.include_router(health_router)
@@ -31,6 +32,7 @@ api_router.include_router(github_router)
 api_router.include_router(coding_router)
 api_router.include_router(coding_ai_router)
 api_router.include_router(build_router)
+api_router.include_router(agents_router)
 api_router.include_router(learning_router)
 api_router.include_router(plugins_router)
 api_router.include_router(automation_router)

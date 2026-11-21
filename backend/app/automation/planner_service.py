@@ -6,7 +6,7 @@ import logging
 
 from backend.app.automation.automation_service import AutomationService
 from backend.app.core.settings import get_settings
-from backend.app.domain.automation import PlanRequest, PlannedTask, TaskPlan
+from backend.app.domain.automation import PlannedTask, PlanRequest, TaskPlan
 
 
 class PlannerService:
@@ -77,55 +77,6 @@ class PlannerService:
         )
 
     async def execute_goal(self, goal: str) -> str | None:
-        """Run a recognized plan step through its existing owning agent."""
-        self._logger.info("planner_input", extra={"goal": goal})
-        from backend.app.api.routes.memory import get_memory_store
-        from backend.app.api.routes.browser import get_browser_controller
-        from backend.app.api.routes.coding import get_coding_controller
-        from backend.app.api.routes.github import get_github_controller
-        from backend.app.api.routes.windows import get_windows_controller
-        from backend.app.browser.natural_language import parse_browser_command
-        from backend.app.coding.natural_language import parse_coding_command
-        from backend.app.github.natural_language import parse_github_command
-        from backend.app.windows.natural_language import execute_natural_command
-        from backend.app.domain.memory import MemoryCreate
-        from backend.app.vision.document_service import DocumentService
-        from backend.app.domain.vision import DocumentType
-
-        normalized = goal.strip().lower().rstrip(".?!")
-        if normalized.startswith("remember "):
-            content = goal.strip()[len("remember "):].strip().rstrip(".?!")
-            get_memory_store().save(MemoryCreate(memory_type="note", content=content, metadata={"source": "assistant"}))
-            return f"I'll remember that: {content}."
-        if normalized in {"what did i tell you", "what did i ask you to remember"}:
-            notes = get_memory_store().list("note")
-            return f"You told me: {notes[0].content}." if notes else "You have not asked me to remember anything yet."
-        if normalized in {"summarize a pdf", "summarize the pdf", "summarize my pdf"}:
-            service = DocumentService(get_settings())
-            pdfs = [record for record in service.list() if record.document_type is DocumentType.PDF]
-            if not pdfs:
-                return "Upload a PDF in Documents first, then ask me to summarize it."
-            return service.summarize(pdfs[0]).summary
-
-        browser = parse_browser_command(goal)
-        if browser is not None:
-            return (await get_browser_controller().execute(browser)).message
-        github = parse_github_command(goal)
-        if github is not None:
-            return (await get_github_controller().execute(github)).message
-        coding = parse_coding_command(goal)
-        if coding is not None:
-            return get_coding_controller().execute(coding).message
-        windows = execute_natural_command(goal, get_windows_controller())
-        if windows is not None:
-            self._logger.info(
-                "planner_output",
-                extra={
-                    "goal": goal,
-                    "agent": "windows",
-                    "success": windows.success,
-                    "result_message": windows.message,
-                    "data": windows.data,
-                },
-            )
-        return windows.message if windows is not None else None
+        """Fail closed: this legacy method no longer dispatches side effects."""
+        self._logger.info("planner_execution_unavailable", extra={"goal_length": len(goal)})
+        return "Natural-language workflow execution is unavailable. Use the explicit workflow or plan APIs."
