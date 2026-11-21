@@ -11,7 +11,11 @@ from pathlib import Path
 import subprocess
 from typing import Any
 from urllib.parse import urlparse
-import winreg
+
+try:
+    import winreg
+except ImportError:  # Windows registry access is unavailable on other platforms.
+    winreg = None  # type: ignore[assignment]
 
 from playwright.async_api import BrowserContext, Error as PlaywrightError, Page, Playwright, async_playwright
 
@@ -325,6 +329,10 @@ class BrowserController:
     @staticmethod
     def _system_default_browser() -> BrowserName:
         """Resolve the Windows HTTPS association without substituting a browser."""
+        if winreg is None:
+            raise ValueError(
+                "Resolving the system default browser is only supported on Windows."
+            )
         association_path = (
             r"Software\Microsoft\Windows\Shell\Associations"
             r"\UrlAssociations\https\UserChoice"

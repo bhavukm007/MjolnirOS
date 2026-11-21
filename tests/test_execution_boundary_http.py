@@ -180,6 +180,23 @@ async def test_http_unsupported_browser_actions_fail_closed(asgi_client, action)
     assert response.json()["success"] is False
 
 
+async def test_browser_route_imports_and_system_browser_fails_clearly_on_linux():
+    from backend.app.api.routes import browser as browser_routes
+    from backend.app.browser.controller import BrowserController
+    from backend.app.domain.browser import BrowserActionRequest
+
+    assert browser_routes.router is not None
+    result = await BrowserController(AppSettings()).execute(
+        BrowserActionRequest(
+            action="open", browser="system", url="https://example.com"
+        )
+    )
+
+    assert result.success is False
+    assert "only supported on windows" in result.message.lower()
+    assert result.data["error_type"] == "ValueError"
+
+
 async def test_http_windows_sensitive_action_requires_exact_runtime_approval(
     asgi_client
 ):

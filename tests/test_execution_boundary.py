@@ -31,6 +31,45 @@ from backend.app.core.settings import AppSettings
 from starlette.requests import Request
 
 
+def test_system_browser_resolution_reports_unsupported_platform(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import backend.app.browser.controller as browser_controller
+
+    monkeypatch.setattr(browser_controller, "winreg", None)
+    with pytest.raises(ValueError, match="only supported on Windows"):
+        browser_controller.BrowserController._system_default_browser()
+
+
+@pytest.mark.parametrize(
+    ("program_id", "expected"),
+    [
+        ("ChromeHTML", "chrome"),
+        ("MSEdgeHTM", "edge"),
+        ("FirefoxURL", "firefox"),
+    ],
+)
+def test_windows_registry_program_ids_still_resolve(
+    monkeypatch: pytest.MonkeyPatch, program_id: str, expected: str
+) -> None:
+    class RegistryKey:
+        def __enter__(self) -> object:
+            return self
+
+        def __exit__(self, *_args: object) -> bool:
+            return False
+
+    registry = SimpleNamespace(
+        HKEY_CURRENT_USER=object(),
+        OpenKey=lambda _root, _path: RegistryKey(),
+        QueryValueEx=lambda _key, _name: (program_id, 0),
+    )
+    import backend.app.browser.controller as browser_controller
+
+    monkeypatch.setattr(browser_controller, "winreg", registry)
+    assert browser_controller.BrowserController._system_default_browser() == expected
+
+
 def test_build_route_fails_closed_without_invoking_controller() -> None:
     with pytest.raises(HTTPException) as error:
         _run_immediate(
