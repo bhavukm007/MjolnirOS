@@ -9,6 +9,7 @@ from backend.app.api.routes import ai as ai_routes
 from backend.app.core.settings import AppSettings
 from backend.app.main import create_app
 from backend.app.tasks.lifecycle import TaskStatus
+from backend.app.windows.super_agent import WindowsSuperAgent
 
 
 API_TOKEN = "test-j2-route-token-0123456789abcdef"
@@ -23,6 +24,28 @@ def _client(tmp_path, *, coding_root=None):
     )
     return TestClient(
         create_app(settings), headers={"Authorization": f"Bearer {API_TOKEN}"}
+    )
+
+
+def _stub_windows_system_reads(monkeypatch):
+    """Keep route and orchestration tests independent of the host OS."""
+    monkeypatch.setattr(
+        WindowsSuperAgent,
+        "system_status",
+        staticmethod(lambda _payload: {
+            "result": {
+                "cpu_percent": 12.5,
+                "memory_percent": 37.0,
+                "disk_percent": 48.0,
+                "battery_percent": None,
+                "battery_plugged": None,
+            }
+        }),
+    )
+    monkeypatch.setattr(
+        WindowsSuperAgent,
+        "list_processes",
+        staticmethod(lambda _payload: {"result": {"processes": []}}),
     )
 
 
@@ -61,6 +84,7 @@ def test_coding_legacy_route_executes_through_registered_capability(tmp_path):
 
 
 def test_chat_system_health_routes_to_live_windows_capability(tmp_path, monkeypatch):
+    _stub_windows_system_reads(monkeypatch)
     settings = AppSettings(
         api_token=SecretStr(API_TOKEN),
         database_path=tmp_path / "agent-tasks.sqlite3",
@@ -158,7 +182,8 @@ def test_coding_sensitive_command_waits_for_exact_agent_approval(tmp_path):
         assert task.json()["status"] == "waiting_approval"
 
 
-def test_persistent_sequential_plan_runs_and_records_step_events(tmp_path):
+def test_persistent_sequential_plan_runs_and_records_step_events(tmp_path, monkeypatch):
+    _stub_windows_system_reads(monkeypatch)
     with _client(tmp_path) as client:
         created = client.post(
             "/api/v1/agents/plans",
@@ -257,7 +282,8 @@ def test_persisted_non_content_approval_survives_runtime_restart(tmp_path):
     assert restored.json()["status"] == "waiting_approval"
 
 
-def test_running_plan_cancellation_stops_before_the_next_step(tmp_path):
+def test_running_plan_cancellation_stops_before_the_next_step(tmp_path, monkeypatch):
+    _stub_windows_system_reads(monkeypatch)
     settings = AppSettings(
         database_path=tmp_path / "agent-tasks.sqlite3",
         windows_search_root=tmp_path,
