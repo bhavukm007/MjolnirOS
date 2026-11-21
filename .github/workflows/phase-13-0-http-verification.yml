@@ -28,31 +28,44 @@ jobs:
   phase-13-0-http:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      MJOLNIROS_CONFIG_FILE: ${{ runner.temp }}/mjolniros-ci-config.json
-      MJOLNIROS_LOG_FILE: ${{ runner.temp }}/mjolniros-ci.log
-      MJOLNIROS_DATABASE_PATH: ${{ runner.temp }}/mjolniros-ci.sqlite3
-      MJOLNIROS_CHROMA_PATH: ${{ runner.temp }}/mjolniros-ci-chroma
-      MJOLNIROS_SETTINGS_STORAGE_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-settings
-      MJOLNIROS_PLUGIN_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-plugins
-      MJOLNIROS_PLUGIN_CATALOG_FILE: ${{ runner.temp }}/mjolniros-ci-plugins/catalog.json
-      MJOLNIROS_PLUGIN_STATE_FILE: ${{ runner.temp }}/mjolniros-ci-plugin-state.json
-      MJOLNIROS_BROWSER_SESSION_PATH: ${{ runner.temp }}/mjolniros-ci-browser
-      MJOLNIROS_VISION_UPLOAD_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-documents
-      MJOLNIROS_AUTOMATION_STORAGE_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-automation
-      MJOLNIROS_LEARNING_STORAGE_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-learning
-      MJOLNIROS_PRODUCTIVITY_STORAGE_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-productivity
-      MJOLNIROS_COMMUNICATION_STORAGE_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-communication
-      MJOLNIROS_AUDIT_STORAGE_DIRECTORY: ${{ runner.temp }}/mjolniros-ci-audit
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure isolated CI paths
+        shell: bash
+        run: |
+          CI_ROOT="$RUNNER_TEMP/mjolniros-ci"
+
+          mkdir -p "$CI_ROOT"
+
+          {
+            echo "MJOLNIROS_CONFIG_FILE=$CI_ROOT/config.json"
+            echo "MJOLNIROS_LOG_FILE=$CI_ROOT/mjolniros.log"
+            echo "MJOLNIROS_DATABASE_PATH=$CI_ROOT/mjolniros.sqlite3"
+            echo "MJOLNIROS_CHROMA_PATH=$CI_ROOT/chroma"
+            echo "MJOLNIROS_SETTINGS_STORAGE_DIRECTORY=$CI_ROOT/settings"
+            echo "MJOLNIROS_PLUGIN_DIRECTORY=$CI_ROOT/plugins"
+            echo "MJOLNIROS_PLUGIN_CATALOG_FILE=$CI_ROOT/plugins/catalog.json"
+            echo "MJOLNIROS_PLUGIN_STATE_FILE=$CI_ROOT/plugin-state.json"
+            echo "MJOLNIROS_BROWSER_SESSION_PATH=$CI_ROOT/browser"
+            echo "MJOLNIROS_VISION_UPLOAD_DIRECTORY=$CI_ROOT/documents"
+            echo "MJOLNIROS_AUTOMATION_STORAGE_DIRECTORY=$CI_ROOT/automation"
+            echo "MJOLNIROS_LEARNING_STORAGE_DIRECTORY=$CI_ROOT/learning"
+            echo "MJOLNIROS_PRODUCTIVITY_STORAGE_DIRECTORY=$CI_ROOT/productivity"
+            echo "MJOLNIROS_COMMUNICATION_STORAGE_DIRECTORY=$CI_ROOT/communication"
+            echo "MJOLNIROS_AUDIT_STORAGE_DIRECTORY=$CI_ROOT/audit"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
+
       - name: Install project dependencies
         run: python -m pip install -r requirements.txt
+
       - name: Run Phase 13.0 focused and HTTP integration tests
         run: >-
           python -m pytest -vv
